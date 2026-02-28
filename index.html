@@ -3,38 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Farm Dairy System</title>
+<title>Patel Farm Business Dashboard</title>
 
-<!-- jsPDF Library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{
-    font-family: Arial, sans-serif;
+    font-family:Arial;
     margin:0;
-    padding:15px;
+    padding:0;
     background:#f4f6f9;
+}
+
+.login{
+    max-width:400px;
+    margin:100px auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+.container{
+    display:none;
+    padding:15px;
 }
 
 h1{
     text-align:center;
-    color:#2c3e50;
-}
-
-.container{
-    max-width:1000px;
-    margin:auto;
-    background:white;
-    padding:15px;
-    border-radius:10px;
-    box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
 
 input,select,button{
     padding:8px;
     margin:5px 0;
     width:100%;
-    box-sizing:border-box;
 }
 
 button{
@@ -44,252 +46,151 @@ button{
     border-radius:5px;
 }
 
-button:hover{
-    background:darkgreen;
-}
-
-.deleteBtn{ background:red; }
-.editBtn{ background:orange; }
-.pdfBtn{ background:#2c3e50; }
-.backupBtn{ background:#2980b9; }
-
-table{
-    width:100%;
-    margin-top:15px;
-    border-collapse:collapse;
-    font-size:14px;
-}
-
-th,td{
-    border:1px solid #ccc;
-    padding:6px;
-    text-align:center;
-}
-
-th{
-    background:#27ae60;
-    color:white;
-}
-
-.summary{
-    margin-top:10px;
-    font-weight:bold;
-}
-
-@media(min-width:768px){
-    input,select,button{
-        width:auto;
-    }
+canvas{
+    margin-top:20px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🐄 Patel Farm Dairy Management 🥛</h1>
+<!-- LOGIN PAGE -->
+<div class="login" id="loginPage">
+<h2>🔐 Admin Login</h2>
+<input type="password" id="password" placeholder="Enter Password">
+<button onclick="login()">Login</button>
+</div>
 
-<div class="container">
+<!-- DASHBOARD -->
+<div class="container" id="dashboard">
 
-<h3>Add Customer</h3>
-<input type="text" id="customerName" placeholder="Customer Name">
-<button onclick="addCustomer()">Add Customer</button>
+<h1>🐄 Patel Farm Business Dashboard</h1>
+
+<h3>Daily Report (All Customers)</h3>
+<input type="date" id="dailyDate" onchange="generateDailyGraph()">
+
+<canvas id="dailyChart"></canvas>
 
 <hr>
 
-<select id="customerSelect" onchange="loadCustomer()">
-<option value="">-- Select Customer --</option>
-</select>
-
-<div id="customerSection"></div>
+<h3>Combined Monthly Report</h3>
+<canvas id="monthlyChart"></canvas>
 
 <hr>
 
-<h3>Backup & Restore</h3>
-<button class="backupBtn" onclick="backupData()">Download Backup</button>
-<input type="file" onchange="restoreData(event)">
+<h3>Profit Calculator</h3>
+<input type="number" id="feedCost" placeholder="Enter Monthly Feed Cost">
+<button onclick="calculateProfit()">Calculate Profit</button>
+<h3 id="profitResult"></h3>
 
 </div>
 
 <script>
 
+// SIMPLE ADMIN PASSWORD
+const ADMIN_PASSWORD = "1234";
+
+function login(){
+    let pass=document.getElementById("password").value;
+    if(pass===ADMIN_PASSWORD){
+        document.getElementById("loginPage").style.display="none";
+        document.getElementById("dashboard").style.display="block";
+        generateMonthlyGraph();
+    }else{
+        alert("Wrong Password");
+    }
+}
+
 let customers = JSON.parse(localStorage.getItem("milkData")) || {};
 
-function saveData(){
-    localStorage.setItem("milkData",JSON.stringify(customers));
-}
+let dailyChart, monthlyChart;
 
-function addCustomer(){
-    let name=document.getElementById("customerName").value.trim();
-    if(!name) return alert("Enter name");
-    if(customers[name]) return alert("Already exists");
-    customers[name]=[];
-    saveData();
-    updateList();
-    document.getElementById("customerName").value="";
-}
+// DAILY GRAPH (ALL CUSTOMERS)
+function generateDailyGraph(){
+    let date=document.getElementById("dailyDate").value;
+    if(!date) return;
 
-function updateList(){
-    let select=document.getElementById("customerSelect");
-    select.innerHTML='<option value="">-- Select Customer --</option>';
+    let labels=[];
+    let data=[];
+
     for(let name in customers){
-        select.innerHTML+=`<option value="${name}">${name}</option>`;
+        let total=0;
+        customers[name].forEach(e=>{
+            if(e.date===date){
+                total+=e.total;
+            }
+        });
+
+        labels.push(name);
+        data.push(total);
     }
-}
 
-function loadCustomer(){
-    let name=document.getElementById("customerSelect").value;
-    if(!name){
-        document.getElementById("customerSection").innerHTML="";
-        return;
-    }
+    if(dailyChart) dailyChart.destroy();
 
-    let html=`
-    <h3>${name}</h3>
-    <input type="date" id="date">
-    <input type="number" id="liters" placeholder="Liters">
-    <input type="number" id="rate" placeholder="Rate">
-    <button onclick="addEntry('${name}')">Add Entry</button>
-
-    <br><br>
-    <label>Monthly Report:</label>
-    <input type="month" id="monthFilter" onchange="loadCustomer()">
-
-    <button class="pdfBtn" onclick="downloadPDF('${name}')">Download PDF</button>
-
-    <table>
-    <tr>
-        <th>Date</th>
-        <th>L</th>
-        <th>Rate</th>
-        <th>Total</th>
-        <th>Action</th>
-    </tr>
-    `;
-
-    let entries=customers[name];
-    let month=document.getElementById("monthFilter")?.value;
-    let totalL=0,totalA=0;
-
-    entries.forEach((e,i)=>{
-        if(month && !e.date.startsWith(month)) return;
-
-        totalL+=e.liters;
-        totalA+=e.total;
-
-        html+=`
-        <tr>
-            <td>${e.date}</td>
-            <td>${e.liters}</td>
-            <td>${e.rate}</td>
-            <td>${e.total}</td>
-            <td>
-                <button class="editBtn" onclick="editEntry('${name}',${i})">Edit</button>
-                <button class="deleteBtn" onclick="deleteEntry('${name}',${i})">Delete</button>
-            </td>
-        </tr>
-        `;
+    dailyChart=new Chart(document.getElementById("dailyChart"),{
+        type:'bar',
+        data:{
+            labels:labels,
+            datasets:[{
+                label:'Income on '+date,
+                data:data,
+                backgroundColor:'green'
+            }]
+        }
     });
-
-    html+=`</table>
-    <div class="summary">
-    Total Liters: ${totalL} L <br>
-    Total Amount: ₹ ${totalA}
-    </div>`;
-
-    document.getElementById("customerSection").innerHTML=html;
 }
 
-function addEntry(name){
-    let date=document.getElementById("date").value;
-    let liters=parseFloat(document.getElementById("liters").value);
-    let rate=parseFloat(document.getElementById("rate").value);
+// MONTHLY COMBINED GRAPH
+function generateMonthlyGraph(){
+    let monthlyData={};
 
-    if(!date||!liters||!rate) return alert("Fill all fields");
-
-    customers[name].push({
-        date,
-        liters,
-        rate,
-        total:liters*rate
-    });
-
-    saveData();
-    loadCustomer();
-}
-
-function deleteEntry(name,i){
-    if(confirm("Delete entry?")){
-        customers[name].splice(i,1);
-        saveData();
-        loadCustomer();
+    for(let name in customers){
+        customers[name].forEach(e=>{
+            let month=e.date.substring(0,7);
+            if(!monthlyData[month]){
+                monthlyData[month]=0;
+            }
+            monthlyData[month]+=e.total;
+        });
     }
-}
 
-function editEntry(name,i){
-    let e=customers[name][i];
-    let l=prompt("Edit Liters:",e.liters);
-    let r=prompt("Edit Rate:",e.rate);
+    let labels=Object.keys(monthlyData);
+    let data=labels.map(m=>monthlyData[m]);
 
-    if(l&&r){
-        e.liters=parseFloat(l);
-        e.rate=parseFloat(r);
-        e.total=e.liters*e.rate;
-        saveData();
-        loadCustomer();
-    }
-}
+    if(monthlyChart) monthlyChart.destroy();
 
-function downloadPDF(name){
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    let month=document.getElementById("monthFilter")?.value;
-    let entries=customers[name];
-
-    let y=20;
-    doc.text(`Patel Farm Dairy Bill`,20,10);
-    doc.text(`Customer: ${name}`,20,y);
-    y+=10;
-
-    let total=0;
-
-    entries.forEach(e=>{
-        if(month && !e.date.startsWith(month)) return;
-
-        doc.text(`${e.date}  -  ${e.liters}L x ${e.rate} = ${e.total}`,20,y);
-        total+=e.total;
-        y+=8;
+    monthlyChart=new Chart(document.getElementById("monthlyChart"),{
+        type:'line',
+        data:{
+            labels:labels,
+            datasets:[{
+                label:'Total Monthly Income (All Customers)',
+                data:data,
+                borderColor:'blue',
+                fill:false
+            }]
+        }
     });
-
-    y+=10;
-    doc.text(`Total Amount: Rs ${total}`,20,y);
-
-    doc.save(`${name}_Milk_Bill.pdf`);
 }
 
-function backupData(){
-    let blob=new Blob([JSON.stringify(customers)],{type:"application/json"});
-    let a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="patel_farm_backup.json";
-    a.click();
+// PROFIT CALCULATION
+function calculateProfit(){
+    let feedCost=parseFloat(document.getElementById("feedCost").value);
+    if(!feedCost) return alert("Enter feed cost");
+
+    let totalIncome=0;
+
+    for(let name in customers){
+        customers[name].forEach(e=>{
+            totalIncome+=e.total;
+        });
+    }
+
+    let profit=totalIncome-feedCost;
+
+    document.getElementById("profitResult").innerHTML=
+        "Total Income: ₹ "+totalIncome+"<br>Net Profit: ₹ "+profit;
 }
-
-function restoreData(event){
-    let file=event.target.files[0];
-    if(!file) return;
-
-    let reader=new FileReader();
-    reader.onload=function(e){
-        customers=JSON.parse(e.target.result);
-        saveData();
-        updateList();
-        alert("Data Restored Successfully");
-    };
-    reader.readAsText(file);
-}
-
-updateList();
 
 </script>
 </body>
