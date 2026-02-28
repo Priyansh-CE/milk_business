@@ -3,14 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Farm Dairy App</title>
+<title>Patel Farm Dairy ERP</title>
+
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{font-family:Arial;margin:0;background:#eef2f7;}
-.header{background:#27ae60;color:white;padding:14px;text-align:center;font-weight:bold;}
+.header{background:#27ae60;color:white;padding:15px;text-align:center;font-weight:bold;}
 .section{background:white;padding:15px;margin:12px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.05);}
 input,select,button{width:100%;padding:10px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
 button{background:#27ae60;color:white;border:none;font-weight:bold;}
@@ -20,13 +21,13 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 th{background:#27ae60;color:white;}
 .table-wrapper{overflow-x:auto;}
 canvas{margin-top:15px;}
-@media(min-width:768px){.section{width:700px;margin:20px auto;}}
+@media(min-width:768px){.section{width:800px;margin:20px auto;}}
 </style>
 </head>
 
 <body>
 
-<div class="header">🐄 Patel Farm Dairy App</div>
+<div class="header">🐄 Patel Farm Dairy ERP</div>
 
 <div id="authSection" class="section"></div>
 
@@ -39,26 +40,40 @@ canvas{margin-top:15px;}
 </div>
 
 <div class="section">
-<h3>Daily Entry</h3>
+<h3>Customer Sale Entry</h3>
 <select id="customerSelect"></select>
 <input type="date" id="date">
+<select id="timeSelect">
+<option value="Morning">Morning</option>
+<option value="Evening">Evening</option>
+</select>
 <input type="number" id="litre" placeholder="Litres">
 <input type="number" id="rate" placeholder="Rate per Litre">
-<button onclick="addEntry()">Add Entry</button>
+<button onclick="addEntry()">Add Sale</button>
+</div>
+
+<div class="section" id="productionSection" style="display:none">
+<h3>Admin Production Entry</h3>
+<input type="date" id="prodDate">
+<input type="number" id="morningMilk" placeholder="Morning Milk (L)">
+<input type="number" id="eveningMilk" placeholder="Evening Milk (L)">
+<button onclick="addProduction()">Add Production</button>
 </div>
 
 <div class="section">
-<h3>Monthly Feed Cost</h3>
-<input type="number" id="feedCost" placeholder="Feed Cost">
-<button onclick="saveFeedCost()">Save</button>
+<h3>Feed Cost (Monthly)</h3>
+<input type="number" id="feedCost">
+<button onclick="saveFeedCost()">Save Feed Cost</button>
 </div>
 
 <div class="section">
-<h3>Report</h3>
+<h3>Daily Sale Report</h3>
 <div class="table-wrapper">
 <table id="reportTable">
 <thead>
-<tr><th>Date</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Delete</th></tr>
+<tr>
+<th>Date</th><th>Time</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Delete</th>
+</tr>
 </thead>
 <tbody></tbody>
 </table>
@@ -66,7 +81,26 @@ canvas{margin-top:15px;}
 </div>
 
 <div class="section">
-<h3>Production Graph</h3>
+<h3>Daily Production Summary</h3>
+<div class="table-wrapper">
+<table id="summaryTable">
+<thead>
+<tr>
+<th>Date</th>
+<th>Morning Prod</th>
+<th>Evening Prod</th>
+<th>Total Prod</th>
+<th>Total Sale</th>
+<th>Remaining</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>Production vs Sale Graph</h3>
 <canvas id="chart"></canvas>
 </div>
 
@@ -86,9 +120,10 @@ navigator.serviceWorker.register('service-worker.js');
 
 let users = JSON.parse(localStorage.getItem("users")) || [];
 let currentUser = null;
+let isAdmin = false;
 
 function showAuth(){
-document.getElementById("authSection").innerHTML=`
+authSection.innerHTML=`
 <h3>Account Access</h3>
 <button onclick="showSignup()">Sign Up</button>
 <button onclick="showLogin()">Login</button>
@@ -100,6 +135,10 @@ authSection.innerHTML=`
 <h3>Sign Up</h3>
 <input id="suUser" placeholder="Username">
 <input id="suPass" type="password" placeholder="Password">
+<select id="role">
+<option value="user">User</option>
+<option value="admin">Admin</option>
+</select>
 <button onclick="signup()">Create Account</button>
 <button onclick="showAuth()">Back</button>
 `;
@@ -118,8 +157,9 @@ authSection.innerHTML=`
 function signup(){
 let u=suUser.value;
 let p=suPass.value;
-if(users.find(x=>x.u==u)){alert("User already exists");return;}
-users.push({u,p});
+let r=role.value;
+if(users.find(x=>x.u==u)){alert("User exists");return;}
+users.push({u,p,r});
 localStorage.setItem("users",JSON.stringify(users));
 alert("Account Created");
 showLogin();
@@ -131,33 +171,31 @@ let p=liPass.value;
 let found=users.find(x=>x.u==u && x.p==p);
 if(found){
 currentUser=u;
+isAdmin=found.r=="admin";
 authSection.style.display="none";
 appSection.style.display="block";
+if(isAdmin) productionSection.style.display="block";
 loadUserData();
 }
 else alert("Wrong Details");
 }
 
-function logout(){
-location.reload();
-}
+function logout(){location.reload();}
 
-function getKey(key){
-return currentUser+"_"+key;
-}
+function getKey(key){return currentUser+"_"+key;}
+
+let customers=[],entries=[],production=[],feedCost=0;
 
 function loadUserData(){
 customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
 entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
+production=JSON.parse(localStorage.getItem(getKey("production")))||[];
 feedCost=localStorage.getItem(getKey("feedCost"))||0;
 loadCustomers();
 loadReport();
+loadSummary();
 drawChart();
 }
-
-let customers=[];
-let entries=[];
-let feedCost=0;
 
 function addCustomer(){
 customers.push(custName.value);
@@ -177,18 +215,19 @@ customerSelect.add(opt);
 
 function addEntry(){
 let amt=litre.value*rate.value;
-entries.push({date:date.value,customer:customerSelect.value,litre:litre.value,amount:amt});
+entries.push({date:date.value,time:timeSelect.value,customer:customerSelect.value,litre:parseFloat(litre.value),amount:amt});
 localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-loadReport();
-drawChart();
+loadReport();loadSummary();drawChart();
 }
 
 function loadReport(){
 let tbody=document.querySelector("#reportTable tbody");
 tbody.innerHTML="";
 entries.forEach((e,i)=>{
-tbody.innerHTML+=`<tr>
+tbody.innerHTML+=`
+<tr>
 <td>${e.date}</td>
+<td>${e.time}</td>
 <td>${e.customer}</td>
 <td>${e.litre}</td>
 <td>${e.amount}</td>
@@ -200,19 +239,48 @@ tbody.innerHTML+=`<tr>
 function deleteEntry(i){
 entries.splice(i,1);
 localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-loadReport();
-drawChart();
+loadReport();loadSummary();drawChart();
+}
+
+function addProduction(){
+let total=parseFloat(morningMilk.value)+parseFloat(eveningMilk.value);
+production.push({date:prodDate.value,morning:parseFloat(morningMilk.value),evening:parseFloat(eveningMilk.value),total:total});
+localStorage.setItem(getKey("production"),JSON.stringify(production));
+loadSummary();drawChart();
+}
+
+function loadSummary(){
+let tbody=document.querySelector("#summaryTable tbody");
+tbody.innerHTML="";
+production.forEach(p=>{
+let totalSale=entries.filter(e=>e.date==p.date).reduce((sum,e)=>sum+e.litre,0);
+let remaining=p.total-totalSale;
+tbody.innerHTML+=`
+<tr>
+<td>${p.date}</td>
+<td>${p.morning}</td>
+<td>${p.evening}</td>
+<td>${p.total}</td>
+<td>${totalSale}</td>
+<td>${remaining}</td>
+</tr>`;
+});
 }
 
 function drawChart(){
-let totals={};
-entries.forEach(e=>{
-totals[e.date]=(totals[e.date]||0)+parseFloat(e.litre);
+let labels=[],prodData=[],saleData=[];
+production.forEach(p=>{
+labels.push(p.date);
+prodData.push(p.total);
+let totalSale=entries.filter(e=>e.date==p.date).reduce((sum,e)=>sum+e.litre,0);
+saleData.push(totalSale);
 });
 new Chart(document.getElementById("chart"),{
 type:'line',
-data:{labels:Object.keys(totals),
-datasets:[{label:"Daily Production",data:Object.values(totals)}]}
+data:{labels:labels,datasets:[
+{label:"Production",data:prodData},
+{label:"Sale",data:saleData}
+]}
 });
 }
 
@@ -229,13 +297,13 @@ doc.text("Patel Farm Monthly Report",20,20);
 let y=30;
 entries.forEach(e=>{
 doc.text(`${e.date} - ${e.customer} - ${e.litre}L - ₹${e.amount}`,20,y);
-y+=10;
+y+=8;
 });
 doc.save("Monthly_Report.pdf");
 }
 
 function backupData(){
-let data={customers,entries,feedCost};
+let data={customers,entries,production,feedCost};
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -249,6 +317,7 @@ reader.onload=function(){
 let data=JSON.parse(reader.result);
 localStorage.setItem(getKey("customers"),JSON.stringify(data.customers));
 localStorage.setItem(getKey("entries"),JSON.stringify(data.entries));
+localStorage.setItem(getKey("production"),JSON.stringify(data.production));
 localStorage.setItem(getKey("feedCost"),data.feedCost);
 location.reload();
 };
