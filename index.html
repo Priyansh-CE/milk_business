@@ -3,346 +3,247 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Farm Complete Dairy ERP</title>
+<title>Patel Farm Dairy App</title>
+
+<link rel="manifest" href="manifest.json">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{font-family:Arial;margin:0;background:#f4f6f9;}
-h1{text-align:center;}
-.box{max-width:400px;margin:80px auto;background:white;padding:20px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.1);}
-.container{display:none;padding:15px;}
-input,select,button{padding:8px;margin:5px 0;width:100%;}
-button{background:green;color:white;border:none;border-radius:5px;}
+body{font-family:Arial;margin:0;background:#eef2f7;}
+.header{background:#27ae60;color:white;padding:12px;text-align:center;font-weight:bold;}
+.section{background:white;padding:15px;margin:12px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.05);}
+input,select,button{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
+button{background:#27ae60;color:white;border:none;font-weight:bold;}
 .logoutBtn{background:red;}
-.section{background:white;padding:15px;margin-bottom:20px;border-radius:10px;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{border:1px solid #ccc;padding:6px;text-align:center;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 th{background:#27ae60;color:white;}
+.table-wrapper{overflow-x:auto;}
 canvas{margin-top:15px;}
-@media(min-width:768px){input,select,button{width:auto;}}
+@media(min-width:768px){
+.section{margin:20px auto;width:700px;}
+}
 </style>
 </head>
+
 <body>
 
-<!-- SIGNUP -->
-<div class="box" id="signupBox" style="display:none;">
-<h2>Sign Up</h2>
-<input id="newUser" placeholder="Username">
-<input id="newPass" type="password" placeholder="Password">
-<button onclick="signup()">Create Account</button>
-</div>
+<div class="header">🐄 Patel Farm Dairy App</div>
 
-<!-- LOGIN -->
-<div class="box" id="loginBox">
-<h2>Login</h2>
-<input id="user" placeholder="Username">
-<input id="pass" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-</div>
+<div id="authSection" class="section"></div>
+<div id="appSection" style="display:none">
 
-<!-- DASHBOARD -->
-<div class="container" id="dashboard">
-
-<h1>🐄 Patel Farm Dairy ERP</h1>
-<button class="logoutBtn" onclick="logout()">Logout</button>
-
-<!-- CUSTOMER SECTION -->
 <div class="section">
-<h3>Customer Management</h3>
-<input id="customerName" placeholder="Customer Name">
+<h3>Add Customer</h3>
+<input id="custName" placeholder="Customer Name">
 <button onclick="addCustomer()">Add Customer</button>
-<select id="customerSelect" onchange="loadCustomer()"></select>
-<div id="customerArea"></div>
 </div>
 
-<!-- COW SECTION -->
 <div class="section">
-<h3>Cow Production</h3>
-<input id="cowName" placeholder="Cow Name">
-<button onclick="addCow()">Add Cow</button>
-<select id="cowSelect" onchange="loadCow()"></select>
-<div id="cowArea"></div>
-<canvas id="cowChart"></canvas>
+<h3>Daily Entry</h3>
+<select id="customerSelect"></select>
+<input type="date" id="date">
+<input type="number" id="litre" placeholder="Litres">
+<input type="number" id="rate" placeholder="Rate per Litre">
+<button onclick="addEntry()">Add Entry</button>
 </div>
 
-<!-- REPORT SECTION -->
 <div class="section">
-<h3>Reports & Profit</h3>
-<input type="date" id="dailyDate" onchange="dailyGraph()">
-<canvas id="dailyChart"></canvas>
-
-<canvas id="monthlyChart"></canvas>
-
-<input type="number" id="feedCost" placeholder="Monthly Feed Cost">
-<button onclick="calcProfit()">Calculate Profit</button>
-<h3 id="profitResult"></h3>
+<h3>Feed Cost (Monthly)</h3>
+<input type="number" id="feedCost" placeholder="Enter Feed Cost">
+<button onclick="saveFeedCost()">Save</button>
 </div>
 
-<!-- BACKUP -->
 <div class="section">
-<h3>Backup & Restore</h3>
-<button onclick="backup()">Download Backup</button>
-<input type="file" onchange="restore(event)">
+<h3>Report</h3>
+<div class="table-wrapper">
+<table id="reportTable">
+<thead>
+<tr><th>Date</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Action</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>Graph</h3>
+<canvas id="myChart"></canvas>
+</div>
+
+<div class="section">
+<button onclick="downloadPDF()">Download Monthly PDF</button>
+<button onclick="backupData()">Backup</button>
+<input type="file" onchange="restoreData(event)">
+<button class="logoutBtn" onclick="logout()">Logout</button>
 </div>
 
 </div>
 
 <script>
-
-/* ================= LOGIN SYSTEM ================= */
-
-let account=JSON.parse(localStorage.getItem("adminAccount"));
-
-if(!account){
-document.getElementById("loginBox").style.display="none";
-document.getElementById("signupBox").style.display="block";
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
 }
 
+let users = JSON.parse(localStorage.getItem("users")) || [];
+let currentUser = null;
+
+function showAuth(){
+if(users.length==0){
+document.getElementById("authSection").innerHTML=`
+<h3>Sign Up</h3>
+<input id="newUser" placeholder="Username">
+<input id="newPass" type="password" placeholder="Password">
+<button onclick="signup()">Create Account</button>`;
+}else{
+document.getElementById("authSection").innerHTML=`
+<h3>Login</h3>
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>`;
+}
+}
+showAuth();
+
 function signup(){
-let u=newUser.value,p=newPass.value;
-if(!u||!p) return alert("Fill fields");
-localStorage.setItem("adminAccount",JSON.stringify({u,p}));
-alert("Account Created");
+let u=newUser.value;
+let p=newPass.value;
+users.push({u,p});
+localStorage.setItem("users",JSON.stringify(users));
 location.reload();
 }
 
 function login(){
-let saved=JSON.parse(localStorage.getItem("adminAccount"));
-if(user.value===saved.u && pass.value===saved.p){
-loginBox.style.display="none";
-dashboard.style.display="block";
-init();
-}else alert("Wrong Login");
+let u=loginUser.value;
+let p=loginPass.value;
+let found=users.find(x=>x.u==u && x.p==p);
+if(found){
+currentUser=u;
+document.getElementById("authSection").style.display="none";
+document.getElementById("appSection").style.display="block";
+loadCustomers();
+loadReport();
+drawChart();
+}
 }
 
 function logout(){
-dashboard.style.display="none";
-loginBox.style.display="block";
+location.reload();
 }
 
-/* ================= DATA ================= */
-
-let customers=JSON.parse(localStorage.getItem("milkData"))||{};
-let cows=JSON.parse(localStorage.getItem("cowData"))||{};
-
-function save(){
-localStorage.setItem("milkData",JSON.stringify(customers));
-localStorage.setItem("cowData",JSON.stringify(cows));
-}
-
-/* ================= INIT ================= */
-
-function init(){
-updateCustomerList();
-updateCowList();
-monthlyGraph();
-}
-
-/* ================= CUSTOMER ================= */
+let customers=JSON.parse(localStorage.getItem("customers"))||[];
+let entries=JSON.parse(localStorage.getItem("entries"))||[];
+let feedCost=localStorage.getItem("feedCost")||0;
 
 function addCustomer(){
-if(!customerName.value) return;
-customers[customerName.value]=[];
-save();
-updateCustomerList();
-customerName.value="";
+customers.push(custName.value);
+localStorage.setItem("customers",JSON.stringify(customers));
+loadCustomers();
+custName.value="";
 }
 
-function updateCustomerList(){
-customerSelect.innerHTML="<option>Select Customer</option>";
-for(let c in customers)
-customerSelect.innerHTML+=`<option>${c}</option>`;
+function loadCustomers(){
+customerSelect.innerHTML="";
+customers.forEach(c=>{
+let opt=document.createElement("option");
+opt.text=c;
+customerSelect.add(opt);
+});
 }
 
-function loadCustomer(){
-let name=customerSelect.value;
-if(!customers[name]) return;
+function addEntry(){
+let e={
+date:date.value,
+customer:customerSelect.value,
+litre:parseFloat(litre.value),
+amount:litre.value*rate.value
+};
+entries.push(e);
+localStorage.setItem("entries",JSON.stringify(entries));
+loadReport();
+drawChart();
+}
 
-let html=`
-<input type="date" id="cDate">
-<input type="number" id="cLiters" placeholder="Liters">
-<input type="number" id="cRate" placeholder="Rate">
-<button onclick="addEntry('${name}')">Add</button>
-<input type="month" id="monthFilter" onchange="loadCustomer()">
-<button onclick="downloadPDF('${name}')">PDF</button>
-<table><tr><th>Date</th><th>L</th><th>Rate</th><th>Total</th><th>Action</th></tr>
-`;
-
-let total=0;
-customers[name].forEach((e,i)=>{
-if(monthFilter.value && !e.date.startsWith(monthFilter.value)) return;
-total+=e.total;
-html+=`<tr>
+function loadReport(){
+let tbody=document.querySelector("#reportTable tbody");
+tbody.innerHTML="";
+entries.forEach((e,i)=>{
+tbody.innerHTML+=`<tr>
 <td>${e.date}</td>
-<td>${e.liters}</td>
-<td>${e.rate}</td>
-<td>${e.total}</td>
-<td>
-<button onclick="editEntry('${name}',${i})">Edit</button>
-<button onclick="delEntry('${name}',${i})">Delete</button>
-</td>
+<td>${e.customer}</td>
+<td>${e.litre}</td>
+<td>${e.amount}</td>
+<td><button onclick="deleteEntry(${i})">❌</button></td>
 </tr>`;
 });
-
-html+=`</table><b>Total ₹ ${total}</b>`;
-customerArea.innerHTML=html;
 }
 
-function addEntry(name){
-let d=cDate.value,l=+cLiters.value,r=+cRate.value;
-if(!d||!l||!r) return;
-customers[name].push({date:d,liters:l,rate:r,total:l*r});
-save();loadCustomer();monthlyGraph();
+function deleteEntry(i){
+entries.splice(i,1);
+localStorage.setItem("entries",JSON.stringify(entries));
+loadReport();
+drawChart();
 }
 
-function editEntry(name,i){
-let e=customers[name][i];
-let l=prompt("Liters",e.liters);
-let r=prompt("Rate",e.rate);
-if(l&&r){
-e.liters=+l;e.rate=+r;e.total=e.liters*e.rate;
-save();loadCustomer();monthlyGraph();
+function drawChart(){
+let ctx=document.getElementById("myChart");
+let totals={};
+entries.forEach(e=>{
+totals[e.date]=(totals[e.date]||0)+e.litre;
+});
+new Chart(ctx,{
+type:'line',
+data:{
+labels:Object.keys(totals),
+datasets:[{label:'Daily Milk Production',data:Object.values(totals)}]
 }
+});
 }
 
-function delEntry(name,i){
-customers[name].splice(i,1);
-save();loadCustomer();monthlyGraph();
+function saveFeedCost(){
+feedCost=document.getElementById("feedCost").value;
+localStorage.setItem("feedCost",feedCost);
+alert("Saved");
 }
 
-function downloadPDF(name){
-const { jsPDF }=window.jspdf;
+function downloadPDF(){
+const { jsPDF } = window.jspdf;
 let doc=new jsPDF();
-doc.text("Patel Farm Bill",20,10);
-let y=20,total=0;
-customers[name].forEach(e=>{
-doc.text(`${e.date}  ${e.liters}L x ${e.rate} = ${e.total}`,20,y);
-total+=e.total;y+=8;
+doc.text("Patel Farm Monthly Report",20,20);
+let y=30;
+entries.forEach(e=>{
+doc.text(`${e.date} - ${e.customer} - ${e.litre}L - ₹${e.amount}`,20,y);
+y+=10;
 });
-doc.text("Total: "+total,20,y+10);
-doc.save(name+"_bill.pdf");
+doc.save("Monthly_Report.pdf");
 }
 
-/* ================= COW ================= */
-
-function addCow(){
-if(!cowName.value) return;
-cows[cowName.value]=[];
-save();updateCowList();cowName.value="";
-}
-
-function updateCowList(){
-cowSelect.innerHTML="<option>Select Cow</option>";
-for(let c in cows)
-cowSelect.innerHTML+=`<option>${c}</option>`;
-}
-
-function loadCow(){
-let name=cowSelect.value;
-if(!cows[name]) return;
-let total=0;
-let html=`
-<input type="date" id="cowDate">
-<input type="number" id="cowLiters" placeholder="Liters">
-<button onclick="addCowEntry('${name}')">Add</button>
-<table><tr><th>Date</th><th>L</th></tr>`;
-cows[name].forEach(e=>{
-total+=e.liters;
-html+=`<tr><td>${e.date}</td><td>${e.liters}</td></tr>`;
-});
-html+=`</table><b>Total ${total} L</b>`;
-cowArea.innerHTML=html;
-cowGraph(name);
-}
-
-function addCowEntry(name){
-let d=cowDate.value,l=+cowLiters.value;
-if(!d||!l) return;
-cows[name].push({date:d,liters:l});
-save();loadCow();
-}
-
-let cowChart;
-function cowGraph(name){
-let monthly={};
-cows[name].forEach(e=>{
-let m=e.date.substring(0,7);
-if(!monthly[m]) monthly[m]=0;
-monthly[m]+=e.liters;
-});
-let labels=Object.keys(monthly);
-let data=labels.map(m=>monthly[m]);
-if(cowChart) cowChart.destroy();
-cowChart=new Chart(cowChart=document.getElementById("cowChart"),{
-type:'bar',
-data:{labels:labels,datasets:[{label:'Monthly Production',data:data,backgroundColor:'green'}]}
-});
-}
-
-/* ================= REPORTS ================= */
-
-let dailyC,monthlyC;
-
-function dailyGraph(){
-let date=dailyDate.value;
-let labels=[],data=[];
-for(let c in customers){
-let t=0;
-customers[c].forEach(e=>{if(e.date===date) t+=e.total;});
-labels.push(c);data.push(t);
-}
-if(dailyC) dailyC.destroy();
-dailyC=new Chart(dailyChart,{type:'bar',
-data:{labels:labels,datasets:[{label:'Daily Income',data:data,backgroundColor:'green'}]}});
-}
-
-function monthlyGraph(){
-let monthly={};
-for(let c in customers){
-customers[c].forEach(e=>{
-let m=e.date.substring(0,7);
-if(!monthly[m]) monthly[m]=0;
-monthly[m]+=e.total;
-});
-}
-let labels=Object.keys(monthly);
-let data=labels.map(m=>monthly[m]);
-if(monthlyC) monthlyC.destroy();
-monthlyC=new Chart(monthlyChart,{type:'line',
-data:{labels:labels,datasets:[{label:'Monthly Income',data:data,borderColor:'blue'}]}});
-}
-
-function calcProfit(){
-let feed=+feedCost.value,total=0;
-for(let c in customers)
-customers[c].forEach(e=>total+=e.total);
-profitResult.innerHTML="Total Income ₹ "+total+"<br>Net Profit ₹ "+(total-feed);
-}
-
-/* ================= BACKUP ================= */
-
-function backup(){
-let blob=new Blob([JSON.stringify({customers,cows})],{type:"application/json"});
+function backupData(){
+let data={
+customers,entries,feedCost
+};
+let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
-a.download="patel_farm_backup.json";
+a.download="backup.json";
 a.click();
 }
 
-function restore(e){
-let file=e.target.files[0];
+function restoreData(event){
+let file=event.target.files[0];
 let reader=new FileReader();
-reader.onload=function(x){
-let data=JSON.parse(x.target.result);
-customers=data.customers||{};
-cows=data.cows||{};
-save();init();
+reader.onload=function(){
+let data=JSON.parse(reader.result);
+localStorage.setItem("customers",JSON.stringify(data.customers));
+localStorage.setItem("entries",JSON.stringify(data.entries));
+localStorage.setItem("feedCost",data.feedCost);
+location.reload();
 };
 reader.readAsText(file);
 }
-
 </script>
+
 </body>
 </html>
