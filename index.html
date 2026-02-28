@@ -4,17 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Patel Farm Dairy App</title>
-
 <link rel="manifest" href="manifest.json">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{font-family:Arial;margin:0;background:#eef2f7;}
-.header{background:#27ae60;color:white;padding:12px;text-align:center;font-weight:bold;}
+.header{background:#27ae60;color:white;padding:14px;text-align:center;font-weight:bold;}
 .section{background:white;padding:15px;margin:12px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.05);}
-input,select,button{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
+input,select,button{width:100%;padding:10px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
 button{background:#27ae60;color:white;border:none;font-weight:bold;}
 .logoutBtn{background:red;}
 table{width:100%;border-collapse:collapse;font-size:12px;}
@@ -22,9 +20,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 th{background:#27ae60;color:white;}
 .table-wrapper{overflow-x:auto;}
 canvas{margin-top:15px;}
-@media(min-width:768px){
-.section{margin:20px auto;width:700px;}
-}
+@media(min-width:768px){.section{width:700px;margin:20px auto;}}
 </style>
 </head>
 
@@ -33,6 +29,7 @@ canvas{margin-top:15px;}
 <div class="header">🐄 Patel Farm Dairy App</div>
 
 <div id="authSection" class="section"></div>
+
 <div id="appSection" style="display:none">
 
 <div class="section">
@@ -51,8 +48,8 @@ canvas{margin-top:15px;}
 </div>
 
 <div class="section">
-<h3>Feed Cost (Monthly)</h3>
-<input type="number" id="feedCost" placeholder="Enter Feed Cost">
+<h3>Monthly Feed Cost</h3>
+<input type="number" id="feedCost" placeholder="Feed Cost">
 <button onclick="saveFeedCost()">Save</button>
 </div>
 
@@ -61,7 +58,7 @@ canvas{margin-top:15px;}
 <div class="table-wrapper">
 <table id="reportTable">
 <thead>
-<tr><th>Date</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Action</th></tr>
+<tr><th>Date</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Delete</th></tr>
 </thead>
 <tbody></tbody>
 </table>
@@ -69,12 +66,12 @@ canvas{margin-top:15px;}
 </div>
 
 <div class="section">
-<h3>Graph</h3>
-<canvas id="myChart"></canvas>
+<h3>Production Graph</h3>
+<canvas id="chart"></canvas>
 </div>
 
 <div class="section">
-<button onclick="downloadPDF()">Download Monthly PDF</button>
+<button onclick="downloadPDF()">Download PDF</button>
 <button onclick="backupData()">Backup</button>
 <input type="file" onchange="restoreData(event)">
 <button class="logoutBtn" onclick="logout()">Logout</button>
@@ -84,62 +81,87 @@ canvas{margin-top:15px;}
 
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
+navigator.serviceWorker.register('service-worker.js');
 }
 
 let users = JSON.parse(localStorage.getItem("users")) || [];
 let currentUser = null;
 
 function showAuth(){
-if(users.length==0){
 document.getElementById("authSection").innerHTML=`
+<h3>Account Access</h3>
+<button onclick="showSignup()">Sign Up</button>
+<button onclick="showLogin()">Login</button>
+`;
+}
+
+function showSignup(){
+authSection.innerHTML=`
 <h3>Sign Up</h3>
-<input id="newUser" placeholder="Username">
-<input id="newPass" type="password" placeholder="Password">
-<button onclick="signup()">Create Account</button>`;
-}else{
-document.getElementById("authSection").innerHTML=`
+<input id="suUser" placeholder="Username">
+<input id="suPass" type="password" placeholder="Password">
+<button onclick="signup()">Create Account</button>
+<button onclick="showAuth()">Back</button>
+`;
+}
+
+function showLogin(){
+authSection.innerHTML=`
 <h3>Login</h3>
-<input id="loginUser" placeholder="Username">
-<input id="loginPass" type="password" placeholder="Password">
-<button onclick="login()">Login</button>`;
+<input id="liUser" placeholder="Username">
+<input id="liPass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<button onclick="showAuth()">Back</button>
+`;
 }
-}
-showAuth();
 
 function signup(){
-let u=newUser.value;
-let p=newPass.value;
+let u=suUser.value;
+let p=suPass.value;
+if(users.find(x=>x.u==u)){alert("User already exists");return;}
 users.push({u,p});
 localStorage.setItem("users",JSON.stringify(users));
-location.reload();
+alert("Account Created");
+showLogin();
 }
 
 function login(){
-let u=loginUser.value;
-let p=loginPass.value;
+let u=liUser.value;
+let p=liPass.value;
 let found=users.find(x=>x.u==u && x.p==p);
 if(found){
 currentUser=u;
-document.getElementById("authSection").style.display="none";
-document.getElementById("appSection").style.display="block";
-loadCustomers();
-loadReport();
-drawChart();
+authSection.style.display="none";
+appSection.style.display="block";
+loadUserData();
 }
+else alert("Wrong Details");
 }
 
 function logout(){
 location.reload();
 }
 
-let customers=JSON.parse(localStorage.getItem("customers"))||[];
-let entries=JSON.parse(localStorage.getItem("entries"))||[];
-let feedCost=localStorage.getItem("feedCost")||0;
+function getKey(key){
+return currentUser+"_"+key;
+}
+
+function loadUserData(){
+customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
+entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
+feedCost=localStorage.getItem(getKey("feedCost"))||0;
+loadCustomers();
+loadReport();
+drawChart();
+}
+
+let customers=[];
+let entries=[];
+let feedCost=0;
 
 function addCustomer(){
 customers.push(custName.value);
-localStorage.setItem("customers",JSON.stringify(customers));
+localStorage.setItem(getKey("customers"),JSON.stringify(customers));
 loadCustomers();
 custName.value="";
 }
@@ -154,14 +176,9 @@ customerSelect.add(opt);
 }
 
 function addEntry(){
-let e={
-date:date.value,
-customer:customerSelect.value,
-litre:parseFloat(litre.value),
-amount:litre.value*rate.value
-};
-entries.push(e);
-localStorage.setItem("entries",JSON.stringify(entries));
+let amt=litre.value*rate.value;
+entries.push({date:date.value,customer:customerSelect.value,litre:litre.value,amount:amt});
+localStorage.setItem(getKey("entries"),JSON.stringify(entries));
 loadReport();
 drawChart();
 }
@@ -182,29 +199,26 @@ tbody.innerHTML+=`<tr>
 
 function deleteEntry(i){
 entries.splice(i,1);
-localStorage.setItem("entries",JSON.stringify(entries));
+localStorage.setItem(getKey("entries"),JSON.stringify(entries));
 loadReport();
 drawChart();
 }
 
 function drawChart(){
-let ctx=document.getElementById("myChart");
 let totals={};
 entries.forEach(e=>{
-totals[e.date]=(totals[e.date]||0)+e.litre;
+totals[e.date]=(totals[e.date]||0)+parseFloat(e.litre);
 });
-new Chart(ctx,{
+new Chart(document.getElementById("chart"),{
 type:'line',
-data:{
-labels:Object.keys(totals),
-datasets:[{label:'Daily Milk Production',data:Object.values(totals)}]
-}
+data:{labels:Object.keys(totals),
+datasets:[{label:"Daily Production",data:Object.values(totals)}]}
 });
 }
 
 function saveFeedCost(){
 feedCost=document.getElementById("feedCost").value;
-localStorage.setItem("feedCost",feedCost);
+localStorage.setItem(getKey("feedCost"),feedCost);
 alert("Saved");
 }
 
@@ -221,9 +235,7 @@ doc.save("Monthly_Report.pdf");
 }
 
 function backupData(){
-let data={
-customers,entries,feedCost
-};
+let data={customers,entries,feedCost};
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -232,17 +244,18 @@ a.click();
 }
 
 function restoreData(event){
-let file=event.target.files[0];
 let reader=new FileReader();
 reader.onload=function(){
 let data=JSON.parse(reader.result);
-localStorage.setItem("customers",JSON.stringify(data.customers));
-localStorage.setItem("entries",JSON.stringify(data.entries));
-localStorage.setItem("feedCost",data.feedCost);
+localStorage.setItem(getKey("customers"),JSON.stringify(data.customers));
+localStorage.setItem(getKey("entries"),JSON.stringify(data.entries));
+localStorage.setItem(getKey("feedCost"),data.feedCost);
 location.reload();
 };
-reader.readAsText(file);
+reader.readAsText(event.target.files[0]);
 }
+
+showAuth();
 </script>
 
 </body>
