@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Dairy Pro</title>
+<title>Patel Dairy Pro Ultimate</title>
 
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -38,6 +38,7 @@ button{
 background:#00ffcc;
 color:black;
 font-weight:bold;
+cursor:pointer;
 }
 
 button:hover{background:white}
@@ -45,13 +46,22 @@ button:hover{background:white}
 .hidden{display:none}
 
 h2{color:#00ffcc}
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:10px;
+}
+td,th{
+border:1px solid white;
+padding:5px;
+text-align:center;
+}
 </style>
 </head>
 <body>
 
 <div class="container">
 
-<!-- AUTH -->
 <div id="auth">
 <div class="card">
 <h2>Signup</h2>
@@ -68,7 +78,6 @@ h2{color:#00ffcc}
 </div>
 </div>
 
-<!-- APP -->
 <div id="app" class="hidden">
 
 <div class="card">
@@ -85,7 +94,7 @@ h2{color:#00ffcc}
 </div>
 
 <div class="card">
-<h2>Daily Entry</h2>
+<h2>Daily Milk Entry</h2>
 <select id="custSelect"></select>
 <input type="date" id="entryDate">
 <input id="entryMilk" placeholder="Milk Litres">
@@ -93,7 +102,13 @@ h2{color:#00ffcc}
 </div>
 
 <div class="card">
-<h2>Production</h2>
+<h2>Customer Full Report</h2>
+<select id="reportSelect" onchange="showCustomerReport()"></select>
+<div id="customerReport"></div>
+</div>
+
+<div class="card">
+<h2>Daily Production</h2>
 <input type="date" id="prodDate">
 <input id="morningMilk" placeholder="Morning Milk">
 <input id="eveningMilk" placeholder="Evening Milk">
@@ -101,7 +116,7 @@ h2{color:#00ffcc}
 </div>
 
 <div class="card">
-<h2>Cow Add</h2>
+<h2>Add Cow</h2>
 <input id="cowName" placeholder="Cow Name">
 <button onclick="addCow()">Add Cow</button>
 </div>
@@ -113,10 +128,13 @@ h2{color:#00ffcc}
 </div>
 
 <div class="card">
-<h2>Reports</h2>
+<h2>Production Graph</h2>
 <canvas id="chart"></canvas>
-<button onclick="downloadPDF()">Download Monthly PDF</button>
-<button onclick="backup()">Backup Data</button>
+</div>
+
+<div class="card">
+<h2>Backup / Restore</h2>
+<button onclick="backup()">Download Backup</button>
 <input type="file" onchange="restore(event)">
 </div>
 
@@ -124,37 +142,30 @@ h2{color:#00ffcc}
 </div>
 
 <script>
-
 if('serviceWorker' in navigator){
 navigator.serviceWorker.register('sw.js');
 }
 
 let currentUser=null;
+let customers=[],entries=[],production=[],cows=[],feed=0;
+
+function getKey(k){return currentUser+"_"+k}
 
 function signup(){
-let u=suUser.value;
-let p=suPass.value;
-localStorage.setItem("user_"+u,p);
+localStorage.setItem("user_"+suUser.value,suPass.value);
 alert("Signup Success");
 }
 
 function login(){
-let u=liUser.value;
-let p=liPass.value;
-if(localStorage.getItem("user_"+u)===p){
-currentUser=u;
+if(localStorage.getItem("user_"+liUser.value)===liPass.value){
+currentUser=liUser.value;
 auth.classList.add("hidden");
 app.classList.remove("hidden");
 loadAll();
 }else alert("Wrong Login");
 }
 
-function logout(){
-currentUser=null;
-location.reload();
-}
-
-function getKey(k){return currentUser+"_"+k}
+function logout(){location.reload();}
 
 function loadAll(){
 customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
@@ -167,8 +178,6 @@ loadSummary();
 drawChart();
 }
 
-let customers=[],entries=[],production=[],cows=[],feed=0;
-
 function addCustomer(){
 customers.push({name:custName.value,price:milkPrice.value});
 localStorage.setItem(getKey("customers"),JSON.stringify(customers));
@@ -177,8 +186,10 @@ refreshSelect();
 
 function refreshSelect(){
 custSelect.innerHTML="";
+reportSelect.innerHTML="";
 customers.forEach((c,i)=>{
 custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
+reportSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
 });
 }
 
@@ -190,11 +201,28 @@ localStorage.setItem(getKey("entries"),JSON.stringify(entries));
 loadSummary();
 }
 
+function showCustomerReport(){
+let name=customers[reportSelect.value].name;
+let data=entries.filter(e=>e.name===name);
+let totalMilk=0,totalMoney=0;
+let html="<table><tr><th>Date</th><th>Litre</th><th>Amount</th></tr>";
+data.forEach(e=>{
+totalMilk+=parseFloat(e.litre);
+totalMoney+=parseFloat(e.total);
+html+=`<tr><td>${e.date}</td><td>${e.litre}</td><td>${e.total}</td></tr>`;
+});
+html+="</table>";
+html+=`<h3>Total Milk: ${totalMilk} L</h3>`;
+html+=`<h3>Total Amount: ₹${totalMoney}</h3>`;
+customerReport.innerHTML=html;
+}
+
 function saveProduction(){
 let total=parseFloat(morningMilk.value||0)+parseFloat(eveningMilk.value||0);
 production.push({date:prodDate.value,total});
 localStorage.setItem(getKey("production"),JSON.stringify(production));
 drawChart();
+loadSummary();
 }
 
 function addCow(){
@@ -205,6 +233,7 @@ localStorage.setItem(getKey("cows"),JSON.stringify(cows));
 function saveFeed(){
 feed=parseFloat(feedCost.value);
 localStorage.setItem(getKey("feed"),feed);
+loadSummary();
 }
 
 function loadSummary(){
@@ -213,9 +242,9 @@ let totalMoney=entries.reduce((s,e)=>s+parseFloat(e.total),0);
 let totalProd=production.reduce((s,p)=>s+p.total,0);
 let profit=totalMoney-feed;
 summary.innerHTML=
-"Total Milk Sold: "+totalMilk+" L<br>"+
-"Total Income: ₹"+totalMoney+"<br>"+
-"Total Production: "+totalProd+" L<br>"+
+"Milk Sold: "+totalMilk+" L<br>"+
+"Income: ₹"+totalMoney+"<br>"+
+"Production: "+totalProd+" L<br>"+
 "Profit: ₹"+profit;
 }
 
@@ -233,14 +262,8 @@ borderColor:"lime"
 });
 }
 
-function downloadPDF(){
-window.print();
-}
-
 function backup(){
-let data={
-customers,entries,production,cows,feed
-};
+let data={customers,entries,production,cows,feed};
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -264,10 +287,10 @@ localStorage.setItem(getKey("production"),JSON.stringify(production));
 localStorage.setItem(getKey("cows"),JSON.stringify(cows));
 localStorage.setItem(getKey("feed"),feed);
 alert("Restored");
+loadAll();
 };
 reader.readAsText(file);
 }
-
 </script>
 </body>
 </html>
