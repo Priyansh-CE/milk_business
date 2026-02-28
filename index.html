@@ -2,13 +2,18 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Patel Farm - PRO Milk हिसाब</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patel Farm Dairy System</title>
+
+<!-- jsPDF Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{
-    font-family: Arial;
-    background:#eef3f7;
-    padding:20px;
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:15px;
+    background:#f4f6f9;
 }
 
 h1{
@@ -20,14 +25,16 @@ h1{
     max-width:1000px;
     margin:auto;
     background:white;
-    padding:20px;
+    padding:15px;
     border-radius:10px;
     box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
 
 input,select,button{
-    padding:7px;
-    margin:5px;
+    padding:8px;
+    margin:5px 0;
+    width:100%;
+    box-sizing:border-box;
 }
 
 button{
@@ -35,30 +42,27 @@ button{
     color:white;
     border:none;
     border-radius:5px;
-    cursor:pointer;
 }
 
 button:hover{
     background:darkgreen;
 }
 
-.deleteBtn{
-    background:red;
-}
-
-.editBtn{
-    background:orange;
-}
+.deleteBtn{ background:red; }
+.editBtn{ background:orange; }
+.pdfBtn{ background:#2c3e50; }
+.backupBtn{ background:#2980b9; }
 
 table{
     width:100%;
     margin-top:15px;
     border-collapse:collapse;
+    font-size:14px;
 }
 
 th,td{
     border:1px solid #ccc;
-    padding:8px;
+    padding:6px;
     text-align:center;
 }
 
@@ -68,30 +72,41 @@ th{
 }
 
 .summary{
-    margin-top:15px;
+    margin-top:10px;
     font-weight:bold;
+}
+
+@media(min-width:768px){
+    input,select,button{
+        width:auto;
+    }
 }
 </style>
 </head>
 
 <body>
 
-<h1>🐄 Patel Farm - PRO Milk हिसाब System 🥛</h1>
+<h1>🐄 Patel Farm Dairy Management 🥛</h1>
 
 <div class="container">
 
 <h3>Add Customer</h3>
 <input type="text" id="customerName" placeholder="Customer Name">
-<button onclick="addCustomer()">Add</button>
+<button onclick="addCustomer()">Add Customer</button>
 
 <hr>
 
-<h3>Select Customer</h3>
 <select id="customerSelect" onchange="loadCustomer()">
 <option value="">-- Select Customer --</option>
 </select>
 
 <div id="customerSection"></div>
+
+<hr>
+
+<h3>Backup & Restore</h3>
+<button class="backupBtn" onclick="backupData()">Download Backup</button>
+<input type="file" onchange="restoreData(event)">
 
 </div>
 
@@ -105,8 +120,8 @@ function saveData(){
 
 function addCustomer(){
     let name=document.getElementById("customerName").value.trim();
-    if(name===""){ alert("Enter name"); return; }
-    if(customers[name]){ alert("Already exists"); return; }
+    if(!name) return alert("Enter name");
+    if(customers[name]) return alert("Already exists");
     customers[name]=[];
     saveData();
     updateList();
@@ -123,56 +138,53 @@ function updateList(){
 
 function loadCustomer(){
     let name=document.getElementById("customerSelect").value;
-    if(name===""){
+    if(!name){
         document.getElementById("customerSection").innerHTML="";
         return;
     }
 
     let html=`
-    <h3>${name} - Daily Entry</h3>
+    <h3>${name}</h3>
     <input type="date" id="date">
     <input type="number" id="liters" placeholder="Liters">
     <input type="number" id="rate" placeholder="Rate">
-    <button onclick="addEntry('${name}')">Add</button>
+    <button onclick="addEntry('${name}')">Add Entry</button>
 
     <br><br>
     <label>Monthly Report:</label>
     <input type="month" id="monthFilter" onchange="loadCustomer()">
 
+    <button class="pdfBtn" onclick="downloadPDF('${name}')">Download PDF</button>
+
     <table>
     <tr>
         <th>Date</th>
-        <th>Liters</th>
+        <th>L</th>
         <th>Rate</th>
-        <th>Total ₹</th>
+        <th>Total</th>
         <th>Action</th>
     </tr>
     `;
 
     let entries=customers[name];
-    let monthFilter=document.getElementById("monthFilter")?.value;
+    let month=document.getElementById("monthFilter")?.value;
+    let totalL=0,totalA=0;
 
-    let totalLiters=0;
-    let totalAmount=0;
+    entries.forEach((e,i)=>{
+        if(month && !e.date.startsWith(month)) return;
 
-    entries.forEach((e,index)=>{
-
-        if(monthFilter && !e.date.startsWith(monthFilter)){
-            return;
-        }
-
-        totalLiters+=e.liters;
-        totalAmount+=e.total;
+        totalL+=e.liters;
+        totalA+=e.total;
 
         html+=`
         <tr>
             <td>${e.date}</td>
             <td>${e.liters}</td>
-            <td>₹${e.rate}</td>
-            <td>₹${e.total}</td>
+            <td>${e.rate}</td>
+            <td>${e.total}</td>
             <td>
-                <button class="editBtn" onclick="editEntry('${name}',${index})">Edit</button>
-                <button class="deleteBtn" onclick="deleteEntry('${name}',${index})">Delete</button>
+                <button class="editBtn" onclick="editEntry('${name}',${i})">Edit</button>
+                <button class="deleteBtn" onclick="deleteEntry('${name}',${i})">Delete</button>
             </td>
         </tr>
         `;
@@ -180,10 +192,9 @@ function loadCustomer(){
 
     html+=`</table>
     <div class="summary">
-    Total Liters: ${totalLiters} L<br>
-    Total Amount: ₹ ${totalAmount}
-    </div>
-    `;
+    Total Liters: ${totalL} L <br>
+    Total Amount: ₹ ${totalA}
+    </div>`;
 
     document.getElementById("customerSection").innerHTML=html;
 }
@@ -193,43 +204,93 @@ function addEntry(name){
     let liters=parseFloat(document.getElementById("liters").value);
     let rate=parseFloat(document.getElementById("rate").value);
 
-    if(date===""||isNaN(liters)||isNaN(rate)){
-        alert("Fill all fields");
-        return;
-    }
+    if(!date||!liters||!rate) return alert("Fill all fields");
 
-    let total=liters*rate;
-    customers[name].push({date,liters,rate,total});
+    customers[name].push({
+        date,
+        liters,
+        rate,
+        total:liters*rate
+    });
+
     saveData();
     loadCustomer();
 }
 
-function deleteEntry(name,index){
-    if(confirm("Delete this entry?")){
-        customers[name].splice(index,1);
+function deleteEntry(name,i){
+    if(confirm("Delete entry?")){
+        customers[name].splice(i,1);
         saveData();
         loadCustomer();
     }
 }
 
-function editEntry(name,index){
-    let entry=customers[name][index];
+function editEntry(name,i){
+    let e=customers[name][i];
+    let l=prompt("Edit Liters:",e.liters);
+    let r=prompt("Edit Rate:",e.rate);
 
-    let newLiters=prompt("Edit Liters:",entry.liters);
-    let newRate=prompt("Edit Rate:",entry.rate);
-
-    if(newLiters!==null && newRate!==null){
-        entry.liters=parseFloat(newLiters);
-        entry.rate=parseFloat(newRate);
-        entry.total=entry.liters*entry.rate;
+    if(l&&r){
+        e.liters=parseFloat(l);
+        e.rate=parseFloat(r);
+        e.total=e.liters*e.rate;
         saveData();
         loadCustomer();
     }
+}
+
+function downloadPDF(name){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let month=document.getElementById("monthFilter")?.value;
+    let entries=customers[name];
+
+    let y=20;
+    doc.text(`Patel Farm Dairy Bill`,20,10);
+    doc.text(`Customer: ${name}`,20,y);
+    y+=10;
+
+    let total=0;
+
+    entries.forEach(e=>{
+        if(month && !e.date.startsWith(month)) return;
+
+        doc.text(`${e.date}  -  ${e.liters}L x ${e.rate} = ${e.total}`,20,y);
+        total+=e.total;
+        y+=8;
+    });
+
+    y+=10;
+    doc.text(`Total Amount: Rs ${total}`,20,y);
+
+    doc.save(`${name}_Milk_Bill.pdf`);
+}
+
+function backupData(){
+    let blob=new Blob([JSON.stringify(customers)],{type:"application/json"});
+    let a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="patel_farm_backup.json";
+    a.click();
+}
+
+function restoreData(event){
+    let file=event.target.files[0];
+    if(!file) return;
+
+    let reader=new FileReader();
+    reader.onload=function(e){
+        customers=JSON.parse(e.target.result);
+        saveData();
+        updateList();
+        alert("Data Restored Successfully");
+    };
+    reader.readAsText(file);
 }
 
 updateList();
 
 </script>
-
 </body>
 </html>
