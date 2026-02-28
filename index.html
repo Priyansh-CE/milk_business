@@ -3,315 +3,244 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Farm Dairy ERP</title>
+<title>Patel Dairy Pro</title>
 
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{font-family:Arial;margin:0;background:#eef2f7;}
-.header{background:#27ae60;color:white;padding:15px;text-align:center;font-weight:bold;}
-.section{background:white;padding:15px;margin:12px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.05);}
-input,select,button{width:100%;padding:10px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
-button{background:#27ae60;color:white;border:none;font-weight:bold;}
-.logoutBtn{background:red;}
-table{width:100%;border-collapse:collapse;font-size:12px;}
-th,td{border:1px solid #ddd;padding:6px;text-align:center;}
-th{background:#27ae60;color:white;}
-.table-wrapper{overflow-x:auto;}
-canvas{margin-top:15px;}
-@media(min-width:768px){.section{width:850px;margin:20px auto;}}
+body{
+margin:0;
+font-family:Segoe UI;
+background:linear-gradient(135deg,#141e30,#243b55);
+color:white;
+}
+
+.container{padding:15px}
+
+.card{
+background:rgba(255,255,255,0.08);
+padding:15px;
+border-radius:15px;
+margin-bottom:15px;
+backdrop-filter:blur(15px);
+}
+
+input,select,button{
+width:100%;
+padding:10px;
+margin:5px 0;
+border-radius:8px;
+border:none;
+}
+
+button{
+background:#00ffcc;
+color:black;
+font-weight:bold;
+}
+
+button:hover{background:white}
+
+.hidden{display:none}
+
+h2{color:#00ffcc}
 </style>
 </head>
-
 <body>
 
-<div class="header">🐄 Patel Farm Dairy ERP</div>
+<div class="container">
 
-<div id="authSection" class="section"></div>
-
-<div id="appSection" style="display:none">
-
-<div class="section">
-<h3>Add Customer</h3>
-<input id="custName" placeholder="Customer Name">
-<button onclick="addCustomer()">Add Customer</button>
-</div>
-
-<div class="section">
-<h3>Customer Sale Entry</h3>
-<select id="customerSelect"></select>
-<input type="date" id="date">
-<select id="timeSelect">
-<option value="Morning">Morning</option>
-<option value="Evening">Evening</option>
-</select>
-<input type="number" id="litre" placeholder="Litres">
-<input type="number" id="rate" placeholder="Rate per Litre">
-<button onclick="addEntry()">Add Sale</button>
-</div>
-
-<div class="section" id="productionSection" style="display:none">
-<h3>Admin Daily Production Entry</h3>
-
-<input type="date" id="prodDate">
-
-<input type="number" id="morningMilk" placeholder="Morning Milk (L)">
-<button onclick="addMorning()">Add Morning</button>
-
-<input type="number" id="eveningMilk" placeholder="Evening Milk (L)">
-<button onclick="addEvening()">Add Evening</button>
-
-<input type="number" id="totalMilk" placeholder="Total Milk (Auto)" readonly>
-
-<button onclick="calculateTotal()">Calculate Total</button>
-<button onclick="saveProduction()">Save Daily Production</button>
-<button onclick="clearProduction()">Clear</button>
-</div>
-
-<div class="section">
-<h3>Feed Cost (Monthly)</h3>
-<input type="number" id="feedCost">
-<button onclick="saveFeedCost()">Save Feed Cost</button>
-</div>
-
-<div class="section">
-<h3>Daily Sale Report</h3>
-<div class="table-wrapper">
-<table id="reportTable">
-<thead>
-<tr>
-<th>Date</th><th>Time</th><th>Customer</th><th>Litre</th><th>Amount</th><th>Delete</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
-</div>
-
-<div class="section">
-<h3>Daily Production Summary</h3>
-<div class="table-wrapper">
-<table id="summaryTable">
-<thead>
-<tr>
-<th>Date</th>
-<th>Morning Prod</th>
-<th>Evening Prod</th>
-<th>Total Prod</th>
-<th>Total Sale</th>
-<th>Remaining</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
-</div>
-
-<div class="section">
-<h3>Production vs Sale Graph</h3>
-<canvas id="chart"></canvas>
-</div>
-
-<div class="section">
-<button onclick="downloadPDF()">Download PDF</button>
-<button onclick="backupData()">Backup</button>
-<input type="file" onchange="restoreData(event)">
-<button class="logoutBtn" onclick="logout()">Logout</button>
-</div>
-
-</div>
-
-<script>
-if ('serviceWorker' in navigator') {
-navigator.serviceWorker.register('service-worker.js');
-}
-
-let users = JSON.parse(localStorage.getItem("users")) || [];
-let currentUser = null;
-let isAdmin = false;
-
-function showAuth(){
-authSection.innerHTML=`
-<h3>Account Access</h3>
-<button onclick="showSignup()">Sign Up</button>
-<button onclick="showLogin()">Login</button>
-`;
-}
-
-function showSignup(){
-authSection.innerHTML=`
-<h3>Sign Up</h3>
+<!-- AUTH -->
+<div id="auth">
+<div class="card">
+<h2>Signup</h2>
 <input id="suUser" placeholder="Username">
 <input id="suPass" type="password" placeholder="Password">
-<select id="role">
-<option value="user">User</option>
-<option value="admin">Admin</option>
-</select>
-<button onclick="signup()">Create Account</button>
-<button onclick="showAuth()">Back</button>
-`;
-}
+<button onclick="signup()">Signup</button>
+</div>
 
-function showLogin(){
-authSection.innerHTML=`
-<h3>Login</h3>
+<div class="card">
+<h2>Login</h2>
 <input id="liUser" placeholder="Username">
 <input id="liPass" type="password" placeholder="Password">
 <button onclick="login()">Login</button>
-<button onclick="showAuth()">Back</button>
-`;
+</div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+<div class="card">
+<h2>Dashboard</h2>
+<p id="summary"></p>
+<button onclick="logout()">Logout</button>
+</div>
+
+<div class="card">
+<h2>Add Customer</h2>
+<input id="custName" placeholder="Customer Name">
+<input id="milkPrice" placeholder="Price per Litre">
+<button onclick="addCustomer()">Add</button>
+</div>
+
+<div class="card">
+<h2>Daily Entry</h2>
+<select id="custSelect"></select>
+<input type="date" id="entryDate">
+<input id="entryMilk" placeholder="Milk Litres">
+<button onclick="addEntry()">Add Entry</button>
+</div>
+
+<div class="card">
+<h2>Production</h2>
+<input type="date" id="prodDate">
+<input id="morningMilk" placeholder="Morning Milk">
+<input id="eveningMilk" placeholder="Evening Milk">
+<button onclick="saveProduction()">Save Production</button>
+</div>
+
+<div class="card">
+<h2>Cow Add</h2>
+<input id="cowName" placeholder="Cow Name">
+<button onclick="addCow()">Add Cow</button>
+</div>
+
+<div class="card">
+<h2>Feed Cost</h2>
+<input id="feedCost" placeholder="Total Feed Cost">
+<button onclick="saveFeed()">Save Cost</button>
+</div>
+
+<div class="card">
+<h2>Reports</h2>
+<canvas id="chart"></canvas>
+<button onclick="downloadPDF()">Download Monthly PDF</button>
+<button onclick="backup()">Backup Data</button>
+<input type="file" onchange="restore(event)">
+</div>
+
+</div>
+</div>
+
+<script>
+
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('sw.js');
 }
+
+let currentUser=null;
 
 function signup(){
 let u=suUser.value;
 let p=suPass.value;
-let r=role.value;
-if(users.find(x=>x.u==u)){alert("User exists");return;}
-users.push({u,p,r});
-localStorage.setItem("users",JSON.stringify(users));
-alert("Account Created");
-showLogin();
+localStorage.setItem("user_"+u,p);
+alert("Signup Success");
 }
 
 function login(){
 let u=liUser.value;
 let p=liPass.value;
-let found=users.find(x=>x.u==u && x.p==p);
-if(found){
+if(localStorage.getItem("user_"+u)===p){
 currentUser=u;
-isAdmin=found.r=="admin";
-authSection.style.display="none";
-appSection.style.display="block";
-if(isAdmin) productionSection.style.display="block";
-loadUserData();
-}
-else alert("Wrong Details");
+auth.classList.add("hidden");
+app.classList.remove("hidden");
+loadAll();
+}else alert("Wrong Login");
 }
 
-function logout(){location.reload();}
-function getKey(key){return currentUser+"_"+key;}
+function logout(){
+currentUser=null;
+location.reload();
+}
 
-let customers=[],entries=[],production=[],feedCost=0;
-let tempMorning=0,tempEvening=0;
+function getKey(k){return currentUser+"_"+k}
 
-function loadUserData(){
+function loadAll(){
 customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
 entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
 production=JSON.parse(localStorage.getItem(getKey("production")))||[];
-feedCost=localStorage.getItem(getKey("feedCost"))||0;
-loadCustomers();loadReport();loadSummary();drawChart();
+cows=JSON.parse(localStorage.getItem(getKey("cows")))||[];
+feed=parseFloat(localStorage.getItem(getKey("feed")))||0;
+refreshSelect();
+loadSummary();
+drawChart();
 }
+
+let customers=[],entries=[],production=[],cows=[],feed=0;
 
 function addCustomer(){
-customers.push(custName.value);
+customers.push({name:custName.value,price:milkPrice.value});
 localStorage.setItem(getKey("customers"),JSON.stringify(customers));
-loadCustomers();custName.value="";
+refreshSelect();
 }
 
-function loadCustomers(){
-customerSelect.innerHTML="";
-customers.forEach(c=>{
-let opt=document.createElement("option");
-opt.text=c;customerSelect.add(opt);
+function refreshSelect(){
+custSelect.innerHTML="";
+customers.forEach((c,i)=>{
+custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
 });
 }
 
 function addEntry(){
-let amt=litre.value*rate.value;
-entries.push({date:date.value,time:timeSelect.value,customer:customerSelect.value,litre:parseFloat(litre.value),amount:amt});
+let c=customers[custSelect.value];
+let total=entryMilk.value*c.price;
+entries.push({date:entryDate.value,name:c.name,litre:entryMilk.value,total});
 localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-loadReport();loadSummary();drawChart();
+loadSummary();
 }
-
-function loadReport(){
-let tbody=document.querySelector("#reportTable tbody");
-tbody.innerHTML="";
-entries.forEach((e,i)=>{
-tbody.innerHTML+=`
-<tr>
-<td>${e.date}</td><td>${e.time}</td><td>${e.customer}</td>
-<td>${e.litre}</td><td>${e.amount}</td>
-<td><button onclick="deleteEntry(${i})">❌</button></td>
-</tr>`;
-});
-}
-
-function deleteEntry(i){
-entries.splice(i,1);
-localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-loadReport();loadSummary();drawChart();
-}
-
-function addMorning(){tempMorning=parseFloat(morningMilk.value)||0;alert("Morning Added");}
-function addEvening(){tempEvening=parseFloat(eveningMilk.value)||0;alert("Evening Added");}
-function calculateTotal(){totalMilk.value=tempMorning+tempEvening;}
 
 function saveProduction(){
-if(!prodDate.value){alert("Select Date");return;}
-let total=tempMorning+tempEvening;
-production.push({date:prodDate.value,morning:tempMorning,evening:tempEvening,total:total});
+let total=parseFloat(morningMilk.value||0)+parseFloat(eveningMilk.value||0);
+production.push({date:prodDate.value,total});
 localStorage.setItem(getKey("production"),JSON.stringify(production));
-loadSummary();drawChart();clearProduction();
+drawChart();
 }
 
-function clearProduction(){
-morningMilk.value="";eveningMilk.value="";totalMilk.value="";
-tempMorning=0;tempEvening=0;
+function addCow(){
+cows.push(cowName.value);
+localStorage.setItem(getKey("cows"),JSON.stringify(cows));
+}
+
+function saveFeed(){
+feed=parseFloat(feedCost.value);
+localStorage.setItem(getKey("feed"),feed);
 }
 
 function loadSummary(){
-let tbody=document.querySelector("#summaryTable tbody");
-tbody.innerHTML="";
-production.forEach(p=>{
-let totalSale=entries.filter(e=>e.date==p.date).reduce((sum,e)=>sum+e.litre,0);
-let remaining=p.total-totalSale;
-tbody.innerHTML+=`
-<tr>
-<td>${p.date}</td><td>${p.morning}</td><td>${p.evening}</td>
-<td>${p.total}</td><td>${totalSale}</td><td>${remaining}</td>
-</tr>`;
-});
+let totalMilk=entries.reduce((s,e)=>s+parseFloat(e.litre),0);
+let totalMoney=entries.reduce((s,e)=>s+parseFloat(e.total),0);
+let totalProd=production.reduce((s,p)=>s+p.total,0);
+let profit=totalMoney-feed;
+summary.innerHTML=
+"Total Milk Sold: "+totalMilk+" L<br>"+
+"Total Income: ₹"+totalMoney+"<br>"+
+"Total Production: "+totalProd+" L<br>"+
+"Profit: ₹"+profit;
 }
 
 function drawChart(){
-let labels=[],prodData=[],saleData=[];
-production.forEach(p=>{
-labels.push(p.date);
-prodData.push(p.total);
-let totalSale=entries.filter(e=>e.date==p.date).reduce((sum,e)=>sum+e.litre,0);
-saleData.push(totalSale);
-});
-new Chart(document.getElementById("chart"),{
-type:'line',
-data:{labels:labels,datasets:[
-{label:"Production",data:prodData},
-{label:"Sale",data:saleData}
-]}
-});
+new Chart(chart,{
+type:"line",
+data:{
+labels:production.map(p=>p.date),
+datasets:[{
+label:"Production",
+data:production.map(p=>p.total),
+borderColor:"lime"
+}]
 }
-
-function saveFeedCost(){
-feedCost=feedCost.value;
-localStorage.setItem(getKey("feedCost"),feedCost);
-alert("Feed Cost Saved");
+});
 }
 
 function downloadPDF(){
-const { jsPDF } = window.jspdf;
-let doc=new jsPDF();
-doc.text("Patel Farm Report",20,20);
-let y=30;
-entries.forEach(e=>{
-doc.text(`${e.date} ${e.customer} ${e.litre}L ₹${e.amount}`,20,y);
-y+=8;
-});
-doc.save("Report.pdf");
+window.print();
 }
 
-function backupData(){
-let data={customers,entries,production,feedCost};
+function backup(){
+let data={
+customers,entries,production,cows,feed
+};
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
@@ -319,21 +248,26 @@ a.download="backup.json";
 a.click();
 }
 
-function restoreData(event){
+function restore(e){
+let file=e.target.files[0];
 let reader=new FileReader();
 reader.onload=function(){
 let data=JSON.parse(reader.result);
-localStorage.setItem(getKey("customers"),JSON.stringify(data.customers));
-localStorage.setItem(getKey("entries"),JSON.stringify(data.entries));
-localStorage.setItem(getKey("production"),JSON.stringify(data.production));
-localStorage.setItem(getKey("feedCost"),data.feedCost);
-location.reload();
+customers=data.customers;
+entries=data.entries;
+production=data.production;
+cows=data.cows;
+feed=data.feed;
+localStorage.setItem(getKey("customers"),JSON.stringify(customers));
+localStorage.setItem(getKey("entries"),JSON.stringify(entries));
+localStorage.setItem(getKey("production"),JSON.stringify(production));
+localStorage.setItem(getKey("cows"),JSON.stringify(cows));
+localStorage.setItem(getKey("feed"),feed);
+alert("Restored");
 };
-reader.readAsText(event.target.files[0]);
+reader.readAsText(file);
 }
 
-showAuth();
 </script>
-
 </body>
 </html>
