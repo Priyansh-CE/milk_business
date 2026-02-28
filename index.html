@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Patel Farm - Milk Calculator</title>
+    <title>Patel Farm - Customer Milk हिसाब</title>
     <meta charset="UTF-8">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f7f9;
+            font-family: Arial;
+            background: #f2f6f9;
             padding: 20px;
         }
 
@@ -16,7 +16,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: auto;
             background: white;
             padding: 20px;
@@ -24,14 +24,12 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
 
-        input {
+        input, button {
             padding: 8px;
             margin: 5px;
-            width: 30%;
         }
 
         button {
-            padding: 10px 15px;
             background: green;
             color: white;
             border: none;
@@ -45,116 +43,166 @@
 
         table {
             width: 100%;
-            margin-top: 20px;
+            margin-top: 15px;
             border-collapse: collapse;
         }
 
         th, td {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
         }
 
         th {
-            background: #2ecc71;
+            background: #27ae60;
             color: white;
         }
 
-        .total {
+        .summary {
             margin-top: 15px;
-            font-size: 18px;
             font-weight: bold;
-            text-align: right;
+        }
+
+        .customer-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>🐄 Patel Farm - Milk Business Calculator 🥛</h1>
+<h1>🐄 Patel Farm - Milk हिसाब System 🥛</h1>
 
-    <div class="container">
+<div class="container">
 
-        <input type="text" id="customerName" placeholder="Customer Name">
-        <input type="number" id="milkQty" placeholder="Milk (Liters)">
-        <input type="number" id="rate" placeholder="Rate per Liter">
-        <button onclick="addRecord()">Add</button>
+    <h3>Add New Customer</h3>
+    <input type="text" id="customerName" placeholder="Customer Name">
+    <button onclick="addCustomer()">Add Customer</button>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Customer Name</th>
-                    <th>Milk (L)</th>
-                    <th>Rate</th>
-                    <th>Total ₹</th>
-                </tr>
-            </thead>
-            <tbody id="recordTable">
-            </tbody>
-        </table>
+    <hr>
 
-        <div class="total">
-            Grand Total: ₹ <span id="grandTotal">0</span>
-        </div>
+    <h3>Select Customer</h3>
+    <select id="customerSelect" onchange="loadCustomer()">
+        <option value="">-- Select Customer --</option>
+    </select>
 
-    </div>
+    <div id="customerDetails"></div>
+
+</div>
 
 <script>
 
-let records = JSON.parse(localStorage.getItem("milkRecords")) || [];
+let customers = JSON.parse(localStorage.getItem("milkCustomers")) || {};
 
-function addRecord() {
-    let name = document.getElementById("customerName").value;
-    let qty = parseFloat(document.getElementById("milkQty").value);
-    let rate = parseFloat(document.getElementById("rate").value);
+function saveData() {
+    localStorage.setItem("milkCustomers", JSON.stringify(customers));
+}
 
-    if(name === "" || isNaN(qty) || isNaN(rate)) {
-        alert("Please fill all fields!");
+function addCustomer() {
+    let name = document.getElementById("customerName").value.trim();
+
+    if(name === "") {
+        alert("Enter customer name");
         return;
     }
 
-    let total = qty * rate;
+    if(customers[name]) {
+        alert("Customer already exists!");
+        return;
+    }
 
-    let record = { name, qty, rate, total };
-    records.push(record);
-
-    localStorage.setItem("milkRecords", JSON.stringify(records));
-
-    displayRecords();
-    clearFields();
+    customers[name] = [];
+    saveData();
+    updateCustomerList();
+    document.getElementById("customerName").value = "";
 }
 
-function displayRecords() {
-    let table = document.getElementById("recordTable");
-    table.innerHTML = "";
+function updateCustomerList() {
+    let select = document.getElementById("customerSelect");
+    select.innerHTML = '<option value="">-- Select Customer --</option>';
 
-    let grand = 0;
+    for(let name in customers) {
+        select.innerHTML += `<option value="${name}">${name}</option>`;
+    }
+}
 
-    records.forEach(r => {
-        grand += r.total;
+function loadCustomer() {
+    let name = document.getElementById("customerSelect").value;
+    let detailsDiv = document.getElementById("customerDetails");
 
-        let row = `
+    if(name === "") {
+        detailsDiv.innerHTML = "";
+        return;
+    }
+
+    let entries = customers[name];
+
+    let html = `
+        <h3>${name} - Daily Milk Entry</h3>
+        <input type="date" id="date">
+        <input type="number" id="liters" placeholder="Liters">
+        <input type="number" id="rate" placeholder="Rate per Liter">
+        <button onclick="addEntry('${name}')">Add Entry</button>
+
+        <table>
             <tr>
-                <td>${r.name}</td>
-                <td>${r.qty}</td>
-                <td>₹ ${r.rate}</td>
-                <td>₹ ${r.total}</td>
+                <th>Date</th>
+                <th>Liters</th>
+                <th>Rate</th>
+                <th>Total ₹</th>
+            </tr>
+    `;
+
+    let totalLiters = 0;
+    let totalAmount = 0;
+
+    entries.forEach(e => {
+        totalLiters += e.liters;
+        totalAmount += e.total;
+
+        html += `
+            <tr>
+                <td>${e.date}</td>
+                <td>${e.liters}</td>
+                <td>₹ ${e.rate}</td>
+                <td>₹ ${e.total}</td>
             </tr>
         `;
-
-        table.innerHTML += row;
     });
 
-    document.getElementById("grandTotal").innerText = grand;
+    html += `
+        </table>
+        <div class="summary">
+            Total Liters: ${totalLiters} L <br>
+            Total Amount: ₹ ${totalAmount}
+        </div>
+    `;
+
+    detailsDiv.innerHTML = html;
 }
 
-function clearFields() {
-    document.getElementById("customerName").value = "";
-    document.getElementById("milkQty").value = "";
-    document.getElementById("rate").value = "";
+function addEntry(name) {
+    let date = document.getElementById("date").value;
+    let liters = parseFloat(document.getElementById("liters").value);
+    let rate = parseFloat(document.getElementById("rate").value);
+
+    if(date === "" || isNaN(liters) || isNaN(rate)) {
+        alert("Fill all fields");
+        return;
+    }
+
+    let total = liters * rate;
+
+    customers[name].push({ date, liters, rate, total });
+
+    saveData();
+    loadCustomer();
 }
 
-displayRecords();
+updateCustomerList();
 
 </script>
 
