@@ -3,193 +3,344 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Farm Business Dashboard</title>
+<title>Patel Farm Complete Dairy ERP</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{
-    font-family:Arial;
-    margin:0;
-    padding:0;
-    background:#f4f6f9;
-}
-
-.login{
-    max-width:400px;
-    margin:100px auto;
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 0 10px rgba(0,0,0,0.1);
-}
-
-.container{
-    display:none;
-    padding:15px;
-}
-
-h1{
-    text-align:center;
-}
-
-input,select,button{
-    padding:8px;
-    margin:5px 0;
-    width:100%;
-}
-
-button{
-    background:green;
-    color:white;
-    border:none;
-    border-radius:5px;
-}
-
-canvas{
-    margin-top:20px;
-}
+body{font-family:Arial;margin:0;background:#f4f6f9;}
+h1{text-align:center;}
+.box{max-width:400px;margin:80px auto;background:white;padding:20px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.1);}
+.container{display:none;padding:15px;}
+input,select,button{padding:8px;margin:5px 0;width:100%;}
+button{background:green;color:white;border:none;border-radius:5px;}
+.logoutBtn{background:red;}
+.section{background:white;padding:15px;margin-bottom:20px;border-radius:10px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:6px;text-align:center;}
+th{background:#27ae60;color:white;}
+canvas{margin-top:15px;}
+@media(min-width:768px){input,select,button{width:auto;}}
 </style>
 </head>
-
 <body>
 
-<!-- LOGIN PAGE -->
-<div class="login" id="loginPage">
-<h2>🔐 Admin Login</h2>
-<input type="password" id="password" placeholder="Enter Password">
+<!-- SIGNUP -->
+<div class="box" id="signupBox" style="display:none;">
+<h2>Sign Up</h2>
+<input id="newUser" placeholder="Username">
+<input id="newPass" type="password" placeholder="Password">
+<button onclick="signup()">Create Account</button>
+</div>
+
+<!-- LOGIN -->
+<div class="box" id="loginBox">
+<h2>Login</h2>
+<input id="user" placeholder="Username">
+<input id="pass" type="password" placeholder="Password">
 <button onclick="login()">Login</button>
 </div>
 
 <!-- DASHBOARD -->
 <div class="container" id="dashboard">
 
-<h1>🐄 Patel Farm Business Dashboard</h1>
+<h1>🐄 Patel Farm Dairy ERP</h1>
+<button class="logoutBtn" onclick="logout()">Logout</button>
 
-<h3>Daily Report (All Customers)</h3>
-<input type="date" id="dailyDate" onchange="generateDailyGraph()">
+<!-- CUSTOMER SECTION -->
+<div class="section">
+<h3>Customer Management</h3>
+<input id="customerName" placeholder="Customer Name">
+<button onclick="addCustomer()">Add Customer</button>
+<select id="customerSelect" onchange="loadCustomer()"></select>
+<div id="customerArea"></div>
+</div>
 
+<!-- COW SECTION -->
+<div class="section">
+<h3>Cow Production</h3>
+<input id="cowName" placeholder="Cow Name">
+<button onclick="addCow()">Add Cow</button>
+<select id="cowSelect" onchange="loadCow()"></select>
+<div id="cowArea"></div>
+<canvas id="cowChart"></canvas>
+</div>
+
+<!-- REPORT SECTION -->
+<div class="section">
+<h3>Reports & Profit</h3>
+<input type="date" id="dailyDate" onchange="dailyGraph()">
 <canvas id="dailyChart"></canvas>
 
-<hr>
-
-<h3>Combined Monthly Report</h3>
 <canvas id="monthlyChart"></canvas>
 
-<hr>
-
-<h3>Profit Calculator</h3>
-<input type="number" id="feedCost" placeholder="Enter Monthly Feed Cost">
-<button onclick="calculateProfit()">Calculate Profit</button>
+<input type="number" id="feedCost" placeholder="Monthly Feed Cost">
+<button onclick="calcProfit()">Calculate Profit</button>
 <h3 id="profitResult"></h3>
+</div>
+
+<!-- BACKUP -->
+<div class="section">
+<h3>Backup & Restore</h3>
+<button onclick="backup()">Download Backup</button>
+<input type="file" onchange="restore(event)">
+</div>
 
 </div>
 
 <script>
 
-// SIMPLE ADMIN PASSWORD
-const ADMIN_PASSWORD = "1234";
+/* ================= LOGIN SYSTEM ================= */
+
+let account=JSON.parse(localStorage.getItem("adminAccount"));
+
+if(!account){
+document.getElementById("loginBox").style.display="none";
+document.getElementById("signupBox").style.display="block";
+}
+
+function signup(){
+let u=newUser.value,p=newPass.value;
+if(!u||!p) return alert("Fill fields");
+localStorage.setItem("adminAccount",JSON.stringify({u,p}));
+alert("Account Created");
+location.reload();
+}
 
 function login(){
-    let pass=document.getElementById("password").value;
-    if(pass===ADMIN_PASSWORD){
-        document.getElementById("loginPage").style.display="none";
-        document.getElementById("dashboard").style.display="block";
-        generateMonthlyGraph();
-    }else{
-        alert("Wrong Password");
-    }
+let saved=JSON.parse(localStorage.getItem("adminAccount"));
+if(user.value===saved.u && pass.value===saved.p){
+loginBox.style.display="none";
+dashboard.style.display="block";
+init();
+}else alert("Wrong Login");
 }
 
-let customers = JSON.parse(localStorage.getItem("milkData")) || {};
-
-let dailyChart, monthlyChart;
-
-// DAILY GRAPH (ALL CUSTOMERS)
-function generateDailyGraph(){
-    let date=document.getElementById("dailyDate").value;
-    if(!date) return;
-
-    let labels=[];
-    let data=[];
-
-    for(let name in customers){
-        let total=0;
-        customers[name].forEach(e=>{
-            if(e.date===date){
-                total+=e.total;
-            }
-        });
-
-        labels.push(name);
-        data.push(total);
-    }
-
-    if(dailyChart) dailyChart.destroy();
-
-    dailyChart=new Chart(document.getElementById("dailyChart"),{
-        type:'bar',
-        data:{
-            labels:labels,
-            datasets:[{
-                label:'Income on '+date,
-                data:data,
-                backgroundColor:'green'
-            }]
-        }
-    });
+function logout(){
+dashboard.style.display="none";
+loginBox.style.display="block";
 }
 
-// MONTHLY COMBINED GRAPH
-function generateMonthlyGraph(){
-    let monthlyData={};
+/* ================= DATA ================= */
 
-    for(let name in customers){
-        customers[name].forEach(e=>{
-            let month=e.date.substring(0,7);
-            if(!monthlyData[month]){
-                monthlyData[month]=0;
-            }
-            monthlyData[month]+=e.total;
-        });
-    }
+let customers=JSON.parse(localStorage.getItem("milkData"))||{};
+let cows=JSON.parse(localStorage.getItem("cowData"))||{};
 
-    let labels=Object.keys(monthlyData);
-    let data=labels.map(m=>monthlyData[m]);
-
-    if(monthlyChart) monthlyChart.destroy();
-
-    monthlyChart=new Chart(document.getElementById("monthlyChart"),{
-        type:'line',
-        data:{
-            labels:labels,
-            datasets:[{
-                label:'Total Monthly Income (All Customers)',
-                data:data,
-                borderColor:'blue',
-                fill:false
-            }]
-        }
-    });
+function save(){
+localStorage.setItem("milkData",JSON.stringify(customers));
+localStorage.setItem("cowData",JSON.stringify(cows));
 }
 
-// PROFIT CALCULATION
-function calculateProfit(){
-    let feedCost=parseFloat(document.getElementById("feedCost").value);
-    if(!feedCost) return alert("Enter feed cost");
+/* ================= INIT ================= */
 
-    let totalIncome=0;
+function init(){
+updateCustomerList();
+updateCowList();
+monthlyGraph();
+}
 
-    for(let name in customers){
-        customers[name].forEach(e=>{
-            totalIncome+=e.total;
-        });
-    }
+/* ================= CUSTOMER ================= */
 
-    let profit=totalIncome-feedCost;
+function addCustomer(){
+if(!customerName.value) return;
+customers[customerName.value]=[];
+save();
+updateCustomerList();
+customerName.value="";
+}
 
-    document.getElementById("profitResult").innerHTML=
-        "Total Income: ₹ "+totalIncome+"<br>Net Profit: ₹ "+profit;
+function updateCustomerList(){
+customerSelect.innerHTML="<option>Select Customer</option>";
+for(let c in customers)
+customerSelect.innerHTML+=`<option>${c}</option>`;
+}
+
+function loadCustomer(){
+let name=customerSelect.value;
+if(!customers[name]) return;
+
+let html=`
+<input type="date" id="cDate">
+<input type="number" id="cLiters" placeholder="Liters">
+<input type="number" id="cRate" placeholder="Rate">
+<button onclick="addEntry('${name}')">Add</button>
+<input type="month" id="monthFilter" onchange="loadCustomer()">
+<button onclick="downloadPDF('${name}')">PDF</button>
+<table><tr><th>Date</th><th>L</th><th>Rate</th><th>Total</th><th>Action</th></tr>
+`;
+
+let total=0;
+customers[name].forEach((e,i)=>{
+if(monthFilter.value && !e.date.startsWith(monthFilter.value)) return;
+total+=e.total;
+html+=`<tr>
+<td>${e.date}</td>
+<td>${e.liters}</td>
+<td>${e.rate}</td>
+<td>${e.total}</td>
+<td>
+<button onclick="editEntry('${name}',${i})">Edit</button>
+<button onclick="delEntry('${name}',${i})">Delete</button>
+</td>
+</tr>`;
+});
+
+html+=`</table><b>Total ₹ ${total}</b>`;
+customerArea.innerHTML=html;
+}
+
+function addEntry(name){
+let d=cDate.value,l=+cLiters.value,r=+cRate.value;
+if(!d||!l||!r) return;
+customers[name].push({date:d,liters:l,rate:r,total:l*r});
+save();loadCustomer();monthlyGraph();
+}
+
+function editEntry(name,i){
+let e=customers[name][i];
+let l=prompt("Liters",e.liters);
+let r=prompt("Rate",e.rate);
+if(l&&r){
+e.liters=+l;e.rate=+r;e.total=e.liters*e.rate;
+save();loadCustomer();monthlyGraph();
+}
+}
+
+function delEntry(name,i){
+customers[name].splice(i,1);
+save();loadCustomer();monthlyGraph();
+}
+
+function downloadPDF(name){
+const { jsPDF }=window.jspdf;
+let doc=new jsPDF();
+doc.text("Patel Farm Bill",20,10);
+let y=20,total=0;
+customers[name].forEach(e=>{
+doc.text(`${e.date}  ${e.liters}L x ${e.rate} = ${e.total}`,20,y);
+total+=e.total;y+=8;
+});
+doc.text("Total: "+total,20,y+10);
+doc.save(name+"_bill.pdf");
+}
+
+/* ================= COW ================= */
+
+function addCow(){
+if(!cowName.value) return;
+cows[cowName.value]=[];
+save();updateCowList();cowName.value="";
+}
+
+function updateCowList(){
+cowSelect.innerHTML="<option>Select Cow</option>";
+for(let c in cows)
+cowSelect.innerHTML+=`<option>${c}</option>`;
+}
+
+function loadCow(){
+let name=cowSelect.value;
+if(!cows[name]) return;
+let total=0;
+let html=`
+<input type="date" id="cowDate">
+<input type="number" id="cowLiters" placeholder="Liters">
+<button onclick="addCowEntry('${name}')">Add</button>
+<table><tr><th>Date</th><th>L</th></tr>`;
+cows[name].forEach(e=>{
+total+=e.liters;
+html+=`<tr><td>${e.date}</td><td>${e.liters}</td></tr>`;
+});
+html+=`</table><b>Total ${total} L</b>`;
+cowArea.innerHTML=html;
+cowGraph(name);
+}
+
+function addCowEntry(name){
+let d=cowDate.value,l=+cowLiters.value;
+if(!d||!l) return;
+cows[name].push({date:d,liters:l});
+save();loadCow();
+}
+
+let cowChart;
+function cowGraph(name){
+let monthly={};
+cows[name].forEach(e=>{
+let m=e.date.substring(0,7);
+if(!monthly[m]) monthly[m]=0;
+monthly[m]+=e.liters;
+});
+let labels=Object.keys(monthly);
+let data=labels.map(m=>monthly[m]);
+if(cowChart) cowChart.destroy();
+cowChart=new Chart(cowChart=document.getElementById("cowChart"),{
+type:'bar',
+data:{labels:labels,datasets:[{label:'Monthly Production',data:data,backgroundColor:'green'}]}
+});
+}
+
+/* ================= REPORTS ================= */
+
+let dailyC,monthlyC;
+
+function dailyGraph(){
+let date=dailyDate.value;
+let labels=[],data=[];
+for(let c in customers){
+let t=0;
+customers[c].forEach(e=>{if(e.date===date) t+=e.total;});
+labels.push(c);data.push(t);
+}
+if(dailyC) dailyC.destroy();
+dailyC=new Chart(dailyChart,{type:'bar',
+data:{labels:labels,datasets:[{label:'Daily Income',data:data,backgroundColor:'green'}]}});
+}
+
+function monthlyGraph(){
+let monthly={};
+for(let c in customers){
+customers[c].forEach(e=>{
+let m=e.date.substring(0,7);
+if(!monthly[m]) monthly[m]=0;
+monthly[m]+=e.total;
+});
+}
+let labels=Object.keys(monthly);
+let data=labels.map(m=>monthly[m]);
+if(monthlyC) monthlyC.destroy();
+monthlyC=new Chart(monthlyChart,{type:'line',
+data:{labels:labels,datasets:[{label:'Monthly Income',data:data,borderColor:'blue'}]}});
+}
+
+function calcProfit(){
+let feed=+feedCost.value,total=0;
+for(let c in customers)
+customers[c].forEach(e=>total+=e.total);
+profitResult.innerHTML="Total Income ₹ "+total+"<br>Net Profit ₹ "+(total-feed);
+}
+
+/* ================= BACKUP ================= */
+
+function backup(){
+let blob=new Blob([JSON.stringify({customers,cows})],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="patel_farm_backup.json";
+a.click();
+}
+
+function restore(e){
+let file=e.target.files[0];
+let reader=new FileReader();
+reader.onload=function(x){
+let data=JSON.parse(x.target.result);
+customers=data.customers||{};
+cows=data.cows||{};
+save();init();
+};
+reader.readAsText(file);
 }
 
 </script>
