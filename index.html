@@ -1,208 +1,233 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Patel Farm - Customer Milk हिसाब</title>
-    <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: Arial;
-            background: #f2f6f9;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<title>Patel Farm - PRO Milk हिसाब</title>
 
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-        }
+<style>
+body{
+    font-family: Arial;
+    background:#eef3f7;
+    padding:20px;
+}
 
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
+h1{
+    text-align:center;
+    color:#2c3e50;
+}
 
-        input, button {
-            padding: 8px;
-            margin: 5px;
-        }
+.container{
+    max-width:1000px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
 
-        button {
-            background: green;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+input,select,button{
+    padding:7px;
+    margin:5px;
+}
 
-        button:hover {
-            background: darkgreen;
-        }
+button{
+    background:green;
+    color:white;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
 
-        table {
-            width: 100%;
-            margin-top: 15px;
-            border-collapse: collapse;
-        }
+button:hover{
+    background:darkgreen;
+}
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
+.deleteBtn{
+    background:red;
+}
 
-        th {
-            background: #27ae60;
-            color: white;
-        }
+.editBtn{
+    background:orange;
+}
 
-        .summary {
-            margin-top: 15px;
-            font-weight: bold;
-        }
+table{
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
 
-        .customer-box {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 5px;
-        }
-    </style>
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:center;
+}
+
+th{
+    background:#27ae60;
+    color:white;
+}
+
+.summary{
+    margin-top:15px;
+    font-weight:bold;
+}
+</style>
 </head>
 
 <body>
 
-<h1>🐄 Patel Farm - Milk हिसाब System 🥛</h1>
+<h1>🐄 Patel Farm - PRO Milk हिसाब System 🥛</h1>
 
 <div class="container">
 
-    <h3>Add New Customer</h3>
-    <input type="text" id="customerName" placeholder="Customer Name">
-    <button onclick="addCustomer()">Add Customer</button>
+<h3>Add Customer</h3>
+<input type="text" id="customerName" placeholder="Customer Name">
+<button onclick="addCustomer()">Add</button>
 
-    <hr>
+<hr>
 
-    <h3>Select Customer</h3>
-    <select id="customerSelect" onchange="loadCustomer()">
-        <option value="">-- Select Customer --</option>
-    </select>
+<h3>Select Customer</h3>
+<select id="customerSelect" onchange="loadCustomer()">
+<option value="">-- Select Customer --</option>
+</select>
 
-    <div id="customerDetails"></div>
+<div id="customerSection"></div>
 
 </div>
 
 <script>
 
-let customers = JSON.parse(localStorage.getItem("milkCustomers")) || {};
+let customers = JSON.parse(localStorage.getItem("milkData")) || {};
 
-function saveData() {
-    localStorage.setItem("milkCustomers", JSON.stringify(customers));
+function saveData(){
+    localStorage.setItem("milkData",JSON.stringify(customers));
 }
 
-function addCustomer() {
-    let name = document.getElementById("customerName").value.trim();
-
-    if(name === "") {
-        alert("Enter customer name");
-        return;
-    }
-
-    if(customers[name]) {
-        alert("Customer already exists!");
-        return;
-    }
-
-    customers[name] = [];
+function addCustomer(){
+    let name=document.getElementById("customerName").value.trim();
+    if(name===""){ alert("Enter name"); return; }
+    if(customers[name]){ alert("Already exists"); return; }
+    customers[name]=[];
     saveData();
-    updateCustomerList();
-    document.getElementById("customerName").value = "";
+    updateList();
+    document.getElementById("customerName").value="";
 }
 
-function updateCustomerList() {
-    let select = document.getElementById("customerSelect");
-    select.innerHTML = '<option value="">-- Select Customer --</option>';
-
-    for(let name in customers) {
-        select.innerHTML += `<option value="${name}">${name}</option>`;
+function updateList(){
+    let select=document.getElementById("customerSelect");
+    select.innerHTML='<option value="">-- Select Customer --</option>';
+    for(let name in customers){
+        select.innerHTML+=`<option value="${name}">${name}</option>`;
     }
 }
 
-function loadCustomer() {
-    let name = document.getElementById("customerSelect").value;
-    let detailsDiv = document.getElementById("customerDetails");
-
-    if(name === "") {
-        detailsDiv.innerHTML = "";
+function loadCustomer(){
+    let name=document.getElementById("customerSelect").value;
+    if(name===""){
+        document.getElementById("customerSection").innerHTML="";
         return;
     }
 
-    let entries = customers[name];
+    let html=`
+    <h3>${name} - Daily Entry</h3>
+    <input type="date" id="date">
+    <input type="number" id="liters" placeholder="Liters">
+    <input type="number" id="rate" placeholder="Rate">
+    <button onclick="addEntry('${name}')">Add</button>
 
-    let html = `
-        <h3>${name} - Daily Milk Entry</h3>
-        <input type="date" id="date">
-        <input type="number" id="liters" placeholder="Liters">
-        <input type="number" id="rate" placeholder="Rate per Liter">
-        <button onclick="addEntry('${name}')">Add Entry</button>
+    <br><br>
+    <label>Monthly Report:</label>
+    <input type="month" id="monthFilter" onchange="loadCustomer()">
 
-        <table>
-            <tr>
-                <th>Date</th>
-                <th>Liters</th>
-                <th>Rate</th>
-                <th>Total ₹</th>
-            </tr>
+    <table>
+    <tr>
+        <th>Date</th>
+        <th>Liters</th>
+        <th>Rate</th>
+        <th>Total ₹</th>
+        <th>Action</th>
+    </tr>
     `;
 
-    let totalLiters = 0;
-    let totalAmount = 0;
+    let entries=customers[name];
+    let monthFilter=document.getElementById("monthFilter")?.value;
 
-    entries.forEach(e => {
-        totalLiters += e.liters;
-        totalAmount += e.total;
+    let totalLiters=0;
+    let totalAmount=0;
 
-        html += `
-            <tr>
-                <td>${e.date}</td>
-                <td>${e.liters}</td>
-                <td>₹ ${e.rate}</td>
-                <td>₹ ${e.total}</td>
-            </tr>
+    entries.forEach((e,index)=>{
+
+        if(monthFilter && !e.date.startsWith(monthFilter)){
+            return;
+        }
+
+        totalLiters+=e.liters;
+        totalAmount+=e.total;
+
+        html+=`
+        <tr>
+            <td>${e.date}</td>
+            <td>${e.liters}</td>
+            <td>₹${e.rate}</td>
+            <td>₹${e.total}</td>
+            <td>
+                <button class="editBtn" onclick="editEntry('${name}',${index})">Edit</button>
+                <button class="deleteBtn" onclick="deleteEntry('${name}',${index})">Delete</button>
+            </td>
+        </tr>
         `;
     });
 
-    html += `
-        </table>
-        <div class="summary">
-            Total Liters: ${totalLiters} L <br>
-            Total Amount: ₹ ${totalAmount}
-        </div>
+    html+=`</table>
+    <div class="summary">
+    Total Liters: ${totalLiters} L<br>
+    Total Amount: ₹ ${totalAmount}
+    </div>
     `;
 
-    detailsDiv.innerHTML = html;
+    document.getElementById("customerSection").innerHTML=html;
 }
 
-function addEntry(name) {
-    let date = document.getElementById("date").value;
-    let liters = parseFloat(document.getElementById("liters").value);
-    let rate = parseFloat(document.getElementById("rate").value);
+function addEntry(name){
+    let date=document.getElementById("date").value;
+    let liters=parseFloat(document.getElementById("liters").value);
+    let rate=parseFloat(document.getElementById("rate").value);
 
-    if(date === "" || isNaN(liters) || isNaN(rate)) {
+    if(date===""||isNaN(liters)||isNaN(rate)){
         alert("Fill all fields");
         return;
     }
 
-    let total = liters * rate;
-
-    customers[name].push({ date, liters, rate, total });
-
+    let total=liters*rate;
+    customers[name].push({date,liters,rate,total});
     saveData();
     loadCustomer();
 }
 
-updateCustomerList();
+function deleteEntry(name,index){
+    if(confirm("Delete this entry?")){
+        customers[name].splice(index,1);
+        saveData();
+        loadCustomer();
+    }
+}
+
+function editEntry(name,index){
+    let entry=customers[name][index];
+
+    let newLiters=prompt("Edit Liters:",entry.liters);
+    let newRate=prompt("Edit Rate:",entry.rate);
+
+    if(newLiters!==null && newRate!==null){
+        entry.liters=parseFloat(newLiters);
+        entry.rate=parseFloat(newRate);
+        entry.total=entry.liters*entry.rate;
+        saveData();
+        loadCustomer();
+    }
+}
+
+updateList();
 
 </script>
 
