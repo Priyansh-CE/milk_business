@@ -1,15 +1,13 @@
 {
-"name": "Patel Farm Dairy App",
+"name": "Patel Farm Dairy ERP",
 "short_name": "PatelFarm",
 "start_url": "index.html",
 "display": "standalone",
 "background_color": "#27ae60",
 "theme_color": "#27ae60",
-"icons": [
-{
+"icons": [{
 "src": "https://cdn-icons-png.flaticon.com/512/1998/1998610.png",
 "sizes": "192x192",
 "type": "image/png"
-}
-]
+}]
 }
