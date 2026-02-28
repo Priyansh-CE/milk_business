@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patel Dairy Pro Ultimate</title>
+<title>Patel Dairy Enterprise</title>
 
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,9 +15,7 @@ font-family:Segoe UI;
 background:linear-gradient(135deg,#141e30,#243b55);
 color:white;
 }
-
-.container{padding:15px}
-
+.container{padding:15px;max-width:1200px;margin:auto}
 .card{
 background:rgba(255,255,255,0.08);
 padding:15px;
@@ -25,7 +23,6 @@ border-radius:15px;
 margin-bottom:15px;
 backdrop-filter:blur(15px);
 }
-
 input,select,button{
 width:100%;
 padding:10px;
@@ -33,19 +30,14 @@ margin:5px 0;
 border-radius:8px;
 border:none;
 }
-
 button{
 background:#00ffcc;
 color:black;
 font-weight:bold;
 cursor:pointer;
 }
-
 button:hover{background:white}
-
 .hidden{display:none}
-
-h2{color:#00ffcc}
 table{
 width:100%;
 border-collapse:collapse;
@@ -53,8 +45,13 @@ margin-top:10px;
 }
 td,th{
 border:1px solid white;
-padding:5px;
+padding:6px;
 text-align:center;
+}
+.actionBtn{
+width:auto;
+padding:5px 10px;
+margin:2px;
 }
 </style>
 </head>
@@ -62,6 +59,7 @@ text-align:center;
 
 <div class="container">
 
+<!-- AUTH -->
 <div id="auth">
 <div class="card">
 <h2>Signup</h2>
@@ -78,6 +76,7 @@ text-align:center;
 </div>
 </div>
 
+<!-- APP -->
 <div id="app" class="hidden">
 
 <div class="card">
@@ -91,34 +90,32 @@ text-align:center;
 <input id="custName" placeholder="Customer Name">
 <input id="milkPrice" placeholder="Price per Litre">
 <button onclick="addCustomer()">Add</button>
+<div id="customerList"></div>
 </div>
 
 <div class="card">
-<h2>Daily Milk Entry</h2>
+<h2>Daily Entry</h2>
 <select id="custSelect"></select>
 <input type="date" id="entryDate">
 <input id="entryMilk" placeholder="Milk Litres">
 <button onclick="addEntry()">Add Entry</button>
+<div id="entryList"></div>
 </div>
 
 <div class="card">
-<h2>Customer Full Report</h2>
-<select id="reportSelect" onchange="showCustomerReport()"></select>
-<div id="customerReport"></div>
-</div>
-
-<div class="card">
-<h2>Daily Production</h2>
+<h2>Production</h2>
 <input type="date" id="prodDate">
 <input id="morningMilk" placeholder="Morning Milk">
 <input id="eveningMilk" placeholder="Evening Milk">
-<button onclick="saveProduction()">Save Production</button>
+<button onclick="addProduction()">Add Production</button>
+<div id="productionList"></div>
 </div>
 
 <div class="card">
-<h2>Add Cow</h2>
+<h2>Cow Tracking</h2>
 <input id="cowName" placeholder="Cow Name">
 <button onclick="addCow()">Add Cow</button>
+<div id="cowList"></div>
 </div>
 
 <div class="card">
@@ -148,6 +145,7 @@ navigator.serviceWorker.register('sw.js');
 
 let currentUser=null;
 let customers=[],entries=[],production=[],cows=[],feed=0;
+let chartInstance=null;
 
 function getKey(k){return currentUser+"_"+k}
 
@@ -173,23 +171,62 @@ entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
 production=JSON.parse(localStorage.getItem(getKey("production")))||[];
 cows=JSON.parse(localStorage.getItem(getKey("cows")))||[];
 feed=parseFloat(localStorage.getItem(getKey("feed")))||0;
+renderCustomers();
+renderEntries();
+renderProduction();
+renderCows();
 refreshSelect();
 loadSummary();
 drawChart();
 }
 
-function addCustomer(){
-customers.push({name:custName.value,price:milkPrice.value});
+function saveAll(){
 localStorage.setItem(getKey("customers"),JSON.stringify(customers));
-refreshSelect();
+localStorage.setItem(getKey("entries"),JSON.stringify(entries));
+localStorage.setItem(getKey("production"),JSON.stringify(production));
+localStorage.setItem(getKey("cows"),JSON.stringify(cows));
+localStorage.setItem(getKey("feed"),feed);
 }
 
+//// CUSTOMER
+function addCustomer(){
+customers.push({name:custName.value,price:milkPrice.value});
+saveAll(); renderCustomers(); refreshSelect();
+}
+
+function renderCustomers(){
+let html="<table><tr><th>Name</th><th>Price</th><th>Action</th></tr>";
+customers.forEach((c,i)=>{
+html+=`<tr>
+<td>${c.name}</td>
+<td>${c.price}</td>
+<td>
+<button class="actionBtn" onclick="editCustomer(${i})">Edit</button>
+<button class="actionBtn" onclick="deleteCustomer(${i})">Delete</button>
+</td>
+</tr>`;
+});
+html+="</table>";
+customerList.innerHTML=html;
+}
+
+function editCustomer(i){
+let newName=prompt("New Name",customers[i].name);
+let newPrice=prompt("New Price",customers[i].price);
+customers[i]={name:newName,price:newPrice};
+saveAll(); renderCustomers(); refreshSelect();
+}
+
+function deleteCustomer(i){
+customers.splice(i,1);
+saveAll(); renderCustomers(); refreshSelect();
+}
+
+//// ENTRY
 function refreshSelect(){
 custSelect.innerHTML="";
-reportSelect.innerHTML="";
 customers.forEach((c,i)=>{
 custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
-reportSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
 });
 }
 
@@ -197,45 +234,91 @@ function addEntry(){
 let c=customers[custSelect.value];
 let total=entryMilk.value*c.price;
 entries.push({date:entryDate.value,name:c.name,litre:entryMilk.value,total});
-localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-loadSummary();
+saveAll(); renderEntries(); loadSummary();
 }
 
-function showCustomerReport(){
-let name=customers[reportSelect.value].name;
-let data=entries.filter(e=>e.name===name);
-let totalMilk=0,totalMoney=0;
-let html="<table><tr><th>Date</th><th>Litre</th><th>Amount</th></tr>";
-data.forEach(e=>{
-totalMilk+=parseFloat(e.litre);
-totalMoney+=parseFloat(e.total);
-html+=`<tr><td>${e.date}</td><td>${e.litre}</td><td>${e.total}</td></tr>`;
+function renderEntries(){
+let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th><th>Action</th></tr>";
+entries.forEach((e,i)=>{
+html+=`<tr>
+<td>${e.date}</td>
+<td>${e.name}</td>
+<td>${e.litre}</td>
+<td>${e.total}</td>
+<td>
+<button class="actionBtn" onclick="editEntry(${i})">Edit</button>
+<button class="actionBtn" onclick="deleteEntry(${i})">Delete</button>
+</td>
+</tr>`;
 });
 html+="</table>";
-html+=`<h3>Total Milk: ${totalMilk} L</h3>`;
-html+=`<h3>Total Amount: ₹${totalMoney}</h3>`;
-customerReport.innerHTML=html;
+entryList.innerHTML=html;
 }
 
-function saveProduction(){
+function editEntry(i){
+let litre=prompt("New Litre",entries[i].litre);
+entries[i].litre=litre;
+saveAll(); renderEntries(); loadSummary();
+}
+
+function deleteEntry(i){
+entries.splice(i,1);
+saveAll(); renderEntries(); loadSummary();
+}
+
+//// PRODUCTION
+function addProduction(){
 let total=parseFloat(morningMilk.value||0)+parseFloat(eveningMilk.value||0);
 production.push({date:prodDate.value,total});
-localStorage.setItem(getKey("production"),JSON.stringify(production));
-drawChart();
-loadSummary();
+saveAll(); renderProduction(); drawChart(); loadSummary();
 }
 
+function renderProduction(){
+let html="<table><tr><th>Date</th><th>Total</th><th>Action</th></tr>";
+production.forEach((p,i)=>{
+html+=`<tr>
+<td>${p.date}</td>
+<td>${p.total}</td>
+<td>
+<button class="actionBtn" onclick="deleteProduction(${i})">Delete</button>
+</td>
+</tr>`;
+});
+html+="</table>";
+productionList.innerHTML=html;
+}
+
+function deleteProduction(i){
+production.splice(i,1);
+saveAll(); renderProduction(); drawChart(); loadSummary();
+}
+
+//// COW
 function addCow(){
 cows.push(cowName.value);
-localStorage.setItem(getKey("cows"),JSON.stringify(cows));
+saveAll(); renderCows();
 }
 
-function saveFeed(){
-feed=parseFloat(feedCost.value);
-localStorage.setItem(getKey("feed"),feed);
-loadSummary();
+function renderCows(){
+let html="<table><tr><th>Cow</th><th>Action</th></tr>";
+cows.forEach((c,i)=>{
+html+=`<tr>
+<td>${c}</td>
+<td>
+<button class="actionBtn" onclick="deleteCow(${i})">Delete</button>
+</td>
+</tr>`;
+});
+html+="</table>";
+cowList.innerHTML=html;
 }
 
+function deleteCow(i){
+cows.splice(i,1);
+saveAll(); renderCows();
+}
+
+//// SUMMARY
 function loadSummary(){
 let totalMilk=entries.reduce((s,e)=>s+parseFloat(e.litre),0);
 let totalMoney=entries.reduce((s,e)=>s+parseFloat(e.total),0);
@@ -248,8 +331,10 @@ summary.innerHTML=
 "Profit: ₹"+profit;
 }
 
+//// GRAPH
 function drawChart(){
-new Chart(chart,{
+if(chartInstance) chartInstance.destroy();
+chartInstance=new Chart(chart,{
 type:"line",
 data:{
 labels:production.map(p=>p.date),
@@ -262,6 +347,13 @@ borderColor:"lime"
 });
 }
 
+//// FEED
+function saveFeed(){
+feed=parseFloat(feedCost.value);
+saveAll(); loadSummary();
+}
+
+//// BACKUP
 function backup(){
 let data={customers,entries,production,cows,feed};
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
@@ -281,13 +373,8 @@ entries=data.entries;
 production=data.production;
 cows=data.cows;
 feed=data.feed;
-localStorage.setItem(getKey("customers"),JSON.stringify(customers));
-localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-localStorage.setItem(getKey("production"),JSON.stringify(production));
-localStorage.setItem(getKey("cows"),JSON.stringify(cows));
-localStorage.setItem(getKey("feed"),feed);
-alert("Restored");
-loadAll();
+saveAll(); loadAll();
+alert("Restored Successfully");
 };
 reader.readAsText(file);
 }
