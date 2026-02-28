@@ -21,7 +21,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 th{background:#27ae60;color:white;}
 .table-wrapper{overflow-x:auto;}
 canvas{margin-top:15px;}
-@media(min-width:768px){.section{width:800px;margin:20px auto;}}
+@media(min-width:768px){.section{width:850px;margin:20px auto;}}
 </style>
 </head>
 
@@ -53,11 +53,21 @@ canvas{margin-top:15px;}
 </div>
 
 <div class="section" id="productionSection" style="display:none">
-<h3>Admin Production Entry</h3>
+<h3>Admin Daily Production Entry</h3>
+
 <input type="date" id="prodDate">
+
 <input type="number" id="morningMilk" placeholder="Morning Milk (L)">
+<button onclick="addMorning()">Add Morning</button>
+
 <input type="number" id="eveningMilk" placeholder="Evening Milk (L)">
-<button onclick="addProduction()">Add Production</button>
+<button onclick="addEvening()">Add Evening</button>
+
+<input type="number" id="totalMilk" placeholder="Total Milk (Auto)" readonly>
+
+<button onclick="calculateTotal()">Calculate Total</button>
+<button onclick="saveProduction()">Save Daily Production</button>
+<button onclick="clearProduction()">Clear</button>
 </div>
 
 <div class="section">
@@ -114,7 +124,7 @@ canvas{margin-top:15px;}
 </div>
 
 <script>
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator') {
 navigator.serviceWorker.register('service-worker.js');
 }
 
@@ -181,35 +191,30 @@ else alert("Wrong Details");
 }
 
 function logout(){location.reload();}
-
 function getKey(key){return currentUser+"_"+key;}
 
 let customers=[],entries=[],production=[],feedCost=0;
+let tempMorning=0,tempEvening=0;
 
 function loadUserData(){
 customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
 entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
 production=JSON.parse(localStorage.getItem(getKey("production")))||[];
 feedCost=localStorage.getItem(getKey("feedCost"))||0;
-loadCustomers();
-loadReport();
-loadSummary();
-drawChart();
+loadCustomers();loadReport();loadSummary();drawChart();
 }
 
 function addCustomer(){
 customers.push(custName.value);
 localStorage.setItem(getKey("customers"),JSON.stringify(customers));
-loadCustomers();
-custName.value="";
+loadCustomers();custName.value="";
 }
 
 function loadCustomers(){
 customerSelect.innerHTML="";
 customers.forEach(c=>{
 let opt=document.createElement("option");
-opt.text=c;
-customerSelect.add(opt);
+opt.text=c;customerSelect.add(opt);
 });
 }
 
@@ -226,11 +231,8 @@ tbody.innerHTML="";
 entries.forEach((e,i)=>{
 tbody.innerHTML+=`
 <tr>
-<td>${e.date}</td>
-<td>${e.time}</td>
-<td>${e.customer}</td>
-<td>${e.litre}</td>
-<td>${e.amount}</td>
+<td>${e.date}</td><td>${e.time}</td><td>${e.customer}</td>
+<td>${e.litre}</td><td>${e.amount}</td>
 <td><button onclick="deleteEntry(${i})">❌</button></td>
 </tr>`;
 });
@@ -242,11 +244,21 @@ localStorage.setItem(getKey("entries"),JSON.stringify(entries));
 loadReport();loadSummary();drawChart();
 }
 
-function addProduction(){
-let total=parseFloat(morningMilk.value)+parseFloat(eveningMilk.value);
-production.push({date:prodDate.value,morning:parseFloat(morningMilk.value),evening:parseFloat(eveningMilk.value),total:total});
+function addMorning(){tempMorning=parseFloat(morningMilk.value)||0;alert("Morning Added");}
+function addEvening(){tempEvening=parseFloat(eveningMilk.value)||0;alert("Evening Added");}
+function calculateTotal(){totalMilk.value=tempMorning+tempEvening;}
+
+function saveProduction(){
+if(!prodDate.value){alert("Select Date");return;}
+let total=tempMorning+tempEvening;
+production.push({date:prodDate.value,morning:tempMorning,evening:tempEvening,total:total});
 localStorage.setItem(getKey("production"),JSON.stringify(production));
-loadSummary();drawChart();
+loadSummary();drawChart();clearProduction();
+}
+
+function clearProduction(){
+morningMilk.value="";eveningMilk.value="";totalMilk.value="";
+tempMorning=0;tempEvening=0;
 }
 
 function loadSummary(){
@@ -257,12 +269,8 @@ let totalSale=entries.filter(e=>e.date==p.date).reduce((sum,e)=>sum+e.litre,0);
 let remaining=p.total-totalSale;
 tbody.innerHTML+=`
 <tr>
-<td>${p.date}</td>
-<td>${p.morning}</td>
-<td>${p.evening}</td>
-<td>${p.total}</td>
-<td>${totalSale}</td>
-<td>${remaining}</td>
+<td>${p.date}</td><td>${p.morning}</td><td>${p.evening}</td>
+<td>${p.total}</td><td>${totalSale}</td><td>${remaining}</td>
 </tr>`;
 });
 }
@@ -285,21 +293,21 @@ data:{labels:labels,datasets:[
 }
 
 function saveFeedCost(){
-feedCost=document.getElementById("feedCost").value;
+feedCost=feedCost.value;
 localStorage.setItem(getKey("feedCost"),feedCost);
-alert("Saved");
+alert("Feed Cost Saved");
 }
 
 function downloadPDF(){
 const { jsPDF } = window.jspdf;
 let doc=new jsPDF();
-doc.text("Patel Farm Monthly Report",20,20);
+doc.text("Patel Farm Report",20,20);
 let y=30;
 entries.forEach(e=>{
-doc.text(`${e.date} - ${e.customer} - ${e.litre}L - ₹${e.amount}`,20,y);
+doc.text(`${e.date} ${e.customer} ${e.litre}L ₹${e.amount}`,20,y);
 y+=8;
 });
-doc.save("Monthly_Report.pdf");
+doc.save("Report.pdf");
 }
 
 function backupData(){
