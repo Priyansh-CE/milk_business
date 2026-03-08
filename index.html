@@ -27,7 +27,7 @@ background:rgba(255,255,255,0.08);
 padding:15px;
 border-radius:15px;
 margin-bottom:15px;
-backdrop-filter:blur(15px);
+backdrop-filter:blur(10px);
 }
 
 input,select,button{
@@ -45,9 +45,13 @@ font-weight:bold;
 cursor:pointer;
 }
 
-button:hover{background:white}
+button:hover{
+background:white;
+}
 
-.hidden{display:none}
+.hidden{
+display:none;
+}
 
 table{
 width:100%;
@@ -74,41 +78,59 @@ margin:2px;
 <div class="container">
 
 <!-- LOGIN -->
+
 <div id="auth">
 
 <div class="card">
+
 <h2>Signup</h2>
+
 <input id="suUser" placeholder="Username">
+
 <input id="suPass" type="password" placeholder="Password">
+
 <button onclick="signup()">Signup</button>
+
 </div>
 
 <div class="card">
+
 <h2>Login</h2>
+
 <input id="liUser" placeholder="Username">
+
 <input id="liPass" type="password" placeholder="Password">
+
 <button onclick="login()">Login</button>
+
 </div>
 
 </div>
 
 <!-- APP -->
+
 <div id="app" class="hidden">
 
 <div class="card">
+
 <h2>Dashboard</h2>
+
 <p id="summary"></p>
+
 <button onclick="logout()">Logout</button>
+
 </div>
 
 <!-- CUSTOMER -->
 
 <div class="card">
+
 <h2>Customers</h2>
 
 <input id="searchCustomer" placeholder="Search Customer" onkeyup="searchCustomer()">
 
 <input id="custName" placeholder="Customer Name">
+
 <input id="milkPrice" placeholder="Price per Litre">
 
 <button onclick="addCustomer()">Add Customer</button>
@@ -117,11 +139,11 @@ margin:2px;
 
 </div>
 
-<!-- ENTRY -->
+<!-- DAILY ENTRY -->
 
 <div class="card">
 
-<h2>Daily Entry</h2>
+<h2>Daily Milk Entry</h2>
 
 <select id="custSelect"></select>
 
@@ -131,11 +153,10 @@ margin:2px;
 
 <button onclick="addEntry()">Add Entry</button>
 
-<br>
-
 <h3>Filter Entries</h3>
 
 <input type="date" id="fromDate">
+
 <input type="date" id="toDate">
 
 <button onclick="filterEntries()">Filter</button>
@@ -144,15 +165,31 @@ margin:2px;
 
 </div>
 
-<!-- CUSTOMER REPORT -->
+<!-- CUSTOMER TOTAL REPORT -->
 
 <div class="card">
 
-<h2>Customer Report</h2>
+<h2>Customer Total Report</h2>
 
 <button onclick="showCustomerReport()">Load Report</button>
 
 <div id="customerReport"></div>
+
+</div>
+
+<!-- CUSTOMER MONTHLY REPORT -->
+
+<div class="card">
+
+<h2>Customer Monthly Report</h2>
+
+<select id="reportCustomer"></select>
+
+<input type="month" id="reportMonth">
+
+<button onclick="generateMonthlyReport()">Generate Monthly Report</button>
+
+<div id="monthlyReport"></div>
 
 </div>
 
@@ -230,11 +267,17 @@ margin:2px;
 
 let currentUser=null;
 
-let customers=[],entries=[],production=[],cows=[],feed=0;
+let customers=[];
+let entries=[];
+let production=[];
+let cows=[];
+let feed=0;
 
 let chartInstance=null;
 
-function getKey(k){return currentUser+"_"+k}
+function getKey(k){
+return currentUser+"_"+k
+}
 
 function signup(){
 
@@ -258,11 +301,19 @@ loadAll();
 
 }
 
-else alert("Wrong Login")
+else{
+
+alert("Wrong Login");
 
 }
 
-function logout(){location.reload()}
+}
+
+function logout(){
+
+location.reload();
+
+}
 
 function loadAll(){
 
@@ -285,6 +336,8 @@ renderProduction();
 renderCows();
 
 refreshSelect();
+
+refreshReportCustomer();
 
 loadSummary();
 
@@ -321,6 +374,8 @@ saveAll();
 renderCustomers();
 
 refreshSelect();
+
+refreshReportCustomer();
 
 }
 
@@ -407,6 +462,18 @@ custSelect.innerHTML="";
 customers.forEach((c,i)=>{
 
 custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
+
+});
+
+}
+
+function refreshReportCustomer(){
+
+reportCustomer.innerHTML="";
+
+customers.forEach(c=>{
+
+reportCustomer.innerHTML+=`<option value="${c.name}">${c.name}</option>`;
 
 });
 
@@ -504,15 +571,7 @@ let milk=custEntries.reduce((s,e)=>s+parseFloat(e.litre),0);
 
 let money=custEntries.reduce((s,e)=>s+parseFloat(e.total),0);
 
-alert(
-
-"Customer: "+name+
-
-"\nMilk: "+milk+"L"+
-
-"\nBill: ₹"+money
-
-);
+alert("Customer: "+name+"\nMilk: "+milk+"L\nBill: ₹"+money);
 
 }
 
@@ -549,6 +608,84 @@ html+=`<tr>
 html+="</table>";
 
 customerReport.innerHTML=html;
+
+}
+
+function generateMonthlyReport(){
+
+let customer=reportCustomer.value;
+
+let month=reportMonth.value;
+
+let filtered=entries.filter(e=>e.name===customer && e.date.startsWith(month));
+
+if(filtered.length===0){
+
+monthlyReport.innerHTML="No Data";
+
+return;
+
+}
+
+let fromDate=filtered[0].date;
+
+let toDate=filtered[filtered.length-1].date;
+
+let totalMilk=filtered.reduce((s,e)=>s+parseFloat(e.litre),0);
+
+let totalMoney=filtered.reduce((s,e)=>s+parseFloat(e.total),0);
+
+let html=`
+
+<h3>${customer} Monthly Report</h3>
+
+<p>
+
+From: ${fromDate}<br>
+
+To: ${toDate}<br>
+
+Total Milk: ${totalMilk}L<br>
+
+Total Bill: ₹${totalMoney}
+
+</p>
+
+<table>
+
+<tr>
+
+<th>Date</th>
+
+<th>Milk</th>
+
+<th>Amount</th>
+
+</tr>
+
+`;
+
+filtered.forEach(e=>{
+
+html+=`
+
+<tr>
+
+<td>${e.date}</td>
+
+<td>${e.litre}</td>
+
+<td>${e.total}</td>
+
+</tr>
+
+`;
+
+});
+
+html+="</table>";
+
+monthlyReport.innerHTML=html;
 
 }
 
