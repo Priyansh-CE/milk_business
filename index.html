@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Patel Dairy Enterprise</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -28,7 +29,6 @@ background:rgba(255,255,255,0.08);
 padding:15px;
 border-radius:15px;
 margin-bottom:15px;
-backdrop-filter:blur(10px);
 }
 
 input,select,button{
@@ -41,13 +41,8 @@ border:none;
 
 button{
 background:#00ffcc;
-color:black;
 font-weight:bold;
 cursor:pointer;
-}
-
-.hidden{
-display:none;
 }
 
 table{
@@ -62,6 +57,10 @@ padding:6px;
 text-align:center;
 }
 
+.hidden{
+display:none;
+}
+
 .actionBtn{
 width:auto;
 padding:5px 10px;
@@ -74,6 +73,8 @@ margin:2px;
 <body>
 
 <div class="container">
+
+<!-- AUTH -->
 
 <div id="auth">
 
@@ -94,6 +95,8 @@ margin:2px;
 </div>
 
 
+<!-- APP -->
+
 <div id="app" class="hidden">
 
 <div class="card">
@@ -102,7 +105,8 @@ margin:2px;
 <button onclick="logout()">Logout</button>
 </div>
 
-<!-- CUSTOMER -->
+
+<!-- CUSTOMERS -->
 
 <div class="card">
 
@@ -120,7 +124,8 @@ margin:2px;
 
 </div>
 
-<!-- ENTRY -->
+
+<!-- MILK ENTRY -->
 
 <div class="card">
 
@@ -137,6 +142,7 @@ margin:2px;
 <h3>Filter Entries</h3>
 
 <input type="date" id="fromDate">
+
 <input type="date" id="toDate">
 
 <button onclick="filterEntries()">Filter</button>
@@ -145,7 +151,21 @@ margin:2px;
 
 </div>
 
-<!-- REPORT -->
+
+<!-- CUSTOMER TOTAL REPORT -->
+
+<div class="card">
+
+<h2>Customer Total Report</h2>
+
+<button onclick="showCustomerReport()">Load Report</button>
+
+<div id="customerReport"></div>
+
+</div>
+
+
+<!-- CUSTOMER MONTHLY REPORT -->
 
 <div class="card">
 
@@ -155,11 +175,12 @@ margin:2px;
 
 <input type="month" id="reportMonth">
 
-<button onclick="generateMonthlyReport()">Generate</button>
+<button onclick="generateMonthlyReport()">Generate Monthly Report</button>
 
 <div id="monthlyReport"></div>
 
 </div>
+
 
 <!-- PRODUCTION -->
 
@@ -179,6 +200,7 @@ margin:2px;
 
 </div>
 
+
 <!-- COW -->
 
 <div class="card">
@@ -193,17 +215,19 @@ margin:2px;
 
 </div>
 
+
 <!-- FEED -->
 
 <div class="card">
 
 <h2>Feed Cost</h2>
 
-<input id="feedCost">
+<input id="feedCost" placeholder="Feed Cost">
 
-<button onclick="saveFeed()">Save Feed Cost</button>
+<button onclick="saveFeed()">Save</button>
 
 </div>
+
 
 <!-- EXPENSE -->
 
@@ -223,7 +247,8 @@ margin:2px;
 
 </div>
 
-<!-- MONTHLY EXPENSE -->
+
+<!-- EXPENSE REPORT -->
 
 <div class="card">
 
@@ -237,6 +262,7 @@ margin:2px;
 
 </div>
 
+
 <!-- GRAPH -->
 
 <div class="card">
@@ -246,6 +272,7 @@ margin:2px;
 <canvas id="chart"></canvas>
 
 </div>
+
 
 <!-- BACKUP -->
 
@@ -262,6 +289,7 @@ margin:2px;
 </div>
 
 </div>
+
 
 <script>
 
@@ -282,7 +310,7 @@ return currentUser+"_"+k
 
 function signup(){
 localStorage.setItem("user_"+suUser.value,suPass.value);
-alert("Signup success");
+alert("Signup Success");
 }
 
 function login(){
@@ -292,6 +320,7 @@ if(localStorage.getItem("user_"+liUser.value)===liPass.value){
 currentUser=liUser.value;
 
 auth.classList.add("hidden");
+
 app.classList.remove("hidden");
 
 loadAll();
@@ -299,7 +328,9 @@ loadAll();
 }
 
 else{
-alert("Wrong login");
+
+alert("Wrong Login");
+
 }
 
 }
@@ -342,6 +373,7 @@ localStorage.setItem(getKey("feed"),feed);
 
 }
 
+
 function addCustomer(){
 
 customers.push({
@@ -350,6 +382,7 @@ price:parseFloat(milkPrice.value)
 });
 
 saveAll();
+
 renderCustomers();
 refreshSelect();
 refreshReportCustomer();
@@ -363,11 +396,17 @@ let html="<table><tr><th>Name</th><th>Price</th><th>Action</th></tr>";
 customers.forEach((c,i)=>{
 
 html+=`<tr>
+
 <td>${c.name}</td>
+
 <td>${c.price}</td>
+
 <td>
+
 <button class="actionBtn" onclick="deleteCustomer(${i})">Delete</button>
+
 </td>
+
 </tr>`;
 
 });
@@ -379,17 +418,51 @@ customerList.innerHTML=html;
 }
 
 function deleteCustomer(i){
+
 customers.splice(i,1);
+
 saveAll();
+
 renderCustomers();
+
 }
+
+
+function searchCustomer(){
+
+let keyword=document.getElementById("searchCustomer").value.toLowerCase();
+
+let filtered=customers.filter(c=>c.name.toLowerCase().includes(keyword));
+
+let html="<table><tr><th>Name</th><th>Price</th></tr>";
+
+filtered.forEach(c=>{
+
+html+=`<tr>
+
+<td>${c.name}</td>
+
+<td>${c.price}</td>
+
+</tr>`;
+
+});
+
+html+="</table>";
+
+customerList.innerHTML=html;
+
+}
+
 
 function refreshSelect(){
 
 custSelect.innerHTML="";
 
 customers.forEach((c,i)=>{
+
 custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
+
 });
 
 }
@@ -399,24 +472,31 @@ function refreshReportCustomer(){
 reportCustomer.innerHTML="";
 
 customers.forEach(c=>{
+
 reportCustomer.innerHTML+=`<option>${c.name}</option>`;
+
 });
 
 }
 
+
 function addEntry(){
 
 let c=customers[custSelect.value];
+
 let total=entryMilk.value*c.price;
 
 entries.push({
+
 date:entryDate.value,
 name:c.name,
 litre:entryMilk.value,
 total
+
 });
 
 saveAll();
+
 renderEntries();
 loadSummary();
 
@@ -429,13 +509,18 @@ let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th><th>A
 entries.forEach((e,i)=>{
 
 html+=`<tr>
+
 <td>${e.date}</td>
 <td>${e.name}</td>
 <td>${e.litre}</td>
 <td>${e.total}</td>
+
 <td>
+
 <button onclick="deleteEntry(${i})">Delete</button>
+
 </td>
+
 </tr>`;
 
 });
@@ -453,10 +538,77 @@ entries.splice(i,1);
 saveAll();
 
 renderEntries();
-
 loadSummary();
 
 }
+
+
+function filterEntries(){
+
+let from=fromDate.value;
+
+let to=toDate.value;
+
+let filtered=entries.filter(e=>e.date>=from && e.date<=to);
+
+let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th></tr>";
+
+filtered.forEach(e=>{
+
+html+=`<tr>
+
+<td>${e.date}</td>
+<td>${e.name}</td>
+<td>${e.litre}</td>
+<td>${e.total}</td>
+
+</tr>`;
+
+});
+
+html+="</table>";
+
+entryList.innerHTML=html;
+
+}
+
+
+function showCustomerReport(){
+
+let report={};
+
+entries.forEach(e=>{
+
+if(!report[e.name]) report[e.name]={milk:0,money:0};
+
+report[e.name].milk+=parseFloat(e.litre);
+
+report[e.name].money+=parseFloat(e.total);
+
+});
+
+let html="<table><tr><th>Name</th><th>Total Milk</th><th>Total Money</th></tr>";
+
+for(let n in report){
+
+html+=`<tr>
+
+<td>${n}</td>
+
+<td>${report[n].milk}</td>
+
+<td>${report[n].money}</td>
+
+</tr>`;
+
+}
+
+html+="</table>";
+
+customerReport.innerHTML=html;
+
+}
+
 
 function generateMonthlyReport(){
 
@@ -465,12 +617,69 @@ let month=reportMonth.value;
 
 let filtered=entries.filter(e=>e.name===customer && e.date.startsWith(month));
 
+if(filtered.length===0){
+
+monthlyReport.innerHTML="No Data";
+
+return;
+
+}
+
+filtered.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+let fromDate=filtered[0].date;
+let toDate=filtered[filtered.length-1].date;
+
 let milk=filtered.reduce((s,e)=>s+parseFloat(e.litre),0);
 let money=filtered.reduce((s,e)=>s+parseFloat(e.total),0);
 
-monthlyReport.innerHTML="Milk: "+milk+"L<br>Bill: ₹"+money;
+let html=`
+
+<h3>${customer} Monthly Report</h3>
+
+<p>
+
+From: ${fromDate}<br>
+To: ${toDate}<br>
+Total Milk: ${milk} L<br>
+Total Bill: ₹${money}
+
+</p>
+
+<table>
+
+<tr>
+
+<th>Date</th>
+<th>Milk</th>
+<th>Amount</th>
+
+</tr>
+
+`;
+
+filtered.forEach(e=>{
+
+html+=`
+
+<tr>
+
+<td>${e.date}</td>
+<td>${e.litre}</td>
+<td>${e.total}</td>
+
+</tr>
+
+`;
+
+});
+
+html+="</table>";
+
+monthlyReport.innerHTML=html;
 
 }
+
 
 function addProduction(){
 
@@ -479,7 +688,9 @@ let total=parseFloat(morningMilk.value||0)+parseFloat(eveningMilk.value||0);
 production.push({date:prodDate.value,total});
 
 saveAll();
+
 renderProduction();
+
 drawChart();
 
 }
@@ -491,11 +702,17 @@ let html="<table><tr><th>Date</th><th>Total</th><th>Action</th></tr>";
 production.forEach((p,i)=>{
 
 html+=`<tr>
+
 <td>${p.date}</td>
+
 <td>${p.total}</td>
+
 <td>
+
 <button onclick="deleteProduction(${i})">Delete</button>
+
 </td>
+
 </tr>`;
 
 });
@@ -518,6 +735,7 @@ drawChart();
 
 }
 
+
 function addCow(){
 
 cows.push(cowName.value);
@@ -533,7 +751,9 @@ function renderCows(){
 let html="<table>";
 
 cows.forEach(c=>{
+
 html+=`<tr><td>${c}</td></tr>`;
+
 });
 
 html+="</table>";
@@ -541,6 +761,7 @@ html+="</table>";
 cowList.innerHTML=html;
 
 }
+
 
 function saveFeed(){
 
@@ -552,17 +773,22 @@ loadSummary();
 
 }
 
+
 function addExpense(){
 
 expenses.push({
+
 date:expDate.value,
 note:expNote.value,
 amount:parseFloat(expAmount.value)
+
 });
 
 saveAll();
 
 renderExpenses();
+
+loadSummary();
 
 }
 
@@ -573,12 +799,17 @@ let html="<table><tr><th>Date</th><th>Note</th><th>Amount</th><th>Action</th></t
 expenses.forEach((e,i)=>{
 
 html+=`<tr>
+
 <td>${e.date}</td>
 <td>${e.note}</td>
 <td>${e.amount}</td>
+
 <td>
+
 <button onclick="deleteExpense(${i})">Delete</button>
+
 </td>
+
 </tr>`;
 
 });
@@ -601,6 +832,7 @@ loadSummary();
 
 }
 
+
 function generateExpenseReport(){
 
 let month=expMonth.value;
@@ -613,11 +845,15 @@ expenseReport.innerHTML="Total Expense ₹"+total;
 
 }
 
+
 function loadSummary(){
 
 let milk=entries.reduce((s,e)=>s+parseFloat(e.litre),0);
+
 let income=entries.reduce((s,e)=>s+parseFloat(e.total),0);
+
 let prod=production.reduce((s,p)=>s+p.total,0);
+
 let expense=expenses.reduce((s,e)=>s+e.amount,0);
 
 let profit=income-feed-expense;
@@ -632,6 +868,7 @@ summary.innerHTML=
 
 }
 
+
 function drawChart(){
 
 if(chartInstance) chartInstance.destroy();
@@ -641,17 +878,25 @@ chartInstance=new Chart(chart,{
 type:"line",
 
 data:{
+
 labels:production.map(p=>p.date),
+
 datasets:[{
+
 label:"Production",
+
 data:production.map(p=>p.total),
+
 borderColor:"lime"
+
 }]
+
 }
 
 });
 
 }
+
 
 function backup(){
 
@@ -668,6 +913,7 @@ a.download="backup.json";
 a.click();
 
 }
+
 
 function restore(e){
 
@@ -687,9 +933,10 @@ expenses=data.expenses;
 feed=data.feed;
 
 saveAll();
+
 loadAll();
 
-alert("Restore complete");
+alert("Restored");
 
 };
 
