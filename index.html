@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+
 body{
 margin:0;
 font-family:Segoe UI;
@@ -45,10 +46,6 @@ font-weight:bold;
 cursor:pointer;
 }
 
-button:hover{
-background:white;
-}
-
 .hidden{
 display:none;
 }
@@ -70,6 +67,7 @@ width:auto;
 padding:5px 10px;
 margin:2px;
 }
+
 </style>
 </head>
 
@@ -77,48 +75,31 @@ margin:2px;
 
 <div class="container">
 
-<!-- LOGIN -->
-
 <div id="auth">
 
 <div class="card">
-
 <h2>Signup</h2>
-
 <input id="suUser" placeholder="Username">
-
 <input id="suPass" type="password" placeholder="Password">
-
 <button onclick="signup()">Signup</button>
-
 </div>
 
 <div class="card">
-
 <h2>Login</h2>
-
 <input id="liUser" placeholder="Username">
-
 <input id="liPass" type="password" placeholder="Password">
-
 <button onclick="login()">Login</button>
-
 </div>
 
 </div>
 
-<!-- APP -->
 
 <div id="app" class="hidden">
 
 <div class="card">
-
 <h2>Dashboard</h2>
-
 <p id="summary"></p>
-
 <button onclick="logout()">Logout</button>
-
 </div>
 
 <!-- CUSTOMER -->
@@ -139,7 +120,7 @@ margin:2px;
 
 </div>
 
-<!-- DAILY ENTRY -->
+<!-- ENTRY -->
 
 <div class="card">
 
@@ -156,7 +137,6 @@ margin:2px;
 <h3>Filter Entries</h3>
 
 <input type="date" id="fromDate">
-
 <input type="date" id="toDate">
 
 <button onclick="filterEntries()">Filter</button>
@@ -165,19 +145,7 @@ margin:2px;
 
 </div>
 
-<!-- CUSTOMER TOTAL REPORT -->
-
-<div class="card">
-
-<h2>Customer Total Report</h2>
-
-<button onclick="showCustomerReport()">Load Report</button>
-
-<div id="customerReport"></div>
-
-</div>
-
-<!-- CUSTOMER MONTHLY REPORT -->
+<!-- REPORT -->
 
 <div class="card">
 
@@ -187,7 +155,7 @@ margin:2px;
 
 <input type="month" id="reportMonth">
 
-<button onclick="generateMonthlyReport()">Generate Monthly Report</button>
+<button onclick="generateMonthlyReport()">Generate</button>
 
 <div id="monthlyReport"></div>
 
@@ -231,9 +199,41 @@ margin:2px;
 
 <h2>Feed Cost</h2>
 
-<input id="feedCost" placeholder="Feed Cost">
+<input id="feedCost">
 
-<button onclick="saveFeed()">Save</button>
+<button onclick="saveFeed()">Save Feed Cost</button>
+
+</div>
+
+<!-- EXPENSE -->
+
+<div class="card">
+
+<h2>Daily Expense</h2>
+
+<input type="date" id="expDate">
+
+<input id="expNote" placeholder="Expense Note">
+
+<input id="expAmount" placeholder="Amount">
+
+<button onclick="addExpense()">Add Expense</button>
+
+<div id="expenseList"></div>
+
+</div>
+
+<!-- MONTHLY EXPENSE -->
+
+<div class="card">
+
+<h2>Monthly Expense Report</h2>
+
+<input type="month" id="expMonth">
+
+<button onclick="generateExpenseReport()">Generate</button>
+
+<div id="expenseReport"></div>
 
 </div>
 
@@ -271,6 +271,7 @@ let customers=[];
 let entries=[];
 let production=[];
 let cows=[];
+let expenses=[];
 let feed=0;
 
 let chartInstance=null;
@@ -280,11 +281,8 @@ return currentUser+"_"+k
 }
 
 function signup(){
-
 localStorage.setItem("user_"+suUser.value,suPass.value);
-
-alert("Signup Success");
-
+alert("Signup success");
 }
 
 function login(){
@@ -294,7 +292,6 @@ if(localStorage.getItem("user_"+liUser.value)===liPass.value){
 currentUser=liUser.value;
 
 auth.classList.add("hidden");
-
 app.classList.remove("hidden");
 
 loadAll();
@@ -302,45 +299,34 @@ loadAll();
 }
 
 else{
-
-alert("Wrong Login");
-
+alert("Wrong login");
 }
 
 }
 
 function logout(){
-
 location.reload();
-
 }
 
 function loadAll(){
 
 customers=JSON.parse(localStorage.getItem(getKey("customers")))||[];
-
 entries=JSON.parse(localStorage.getItem(getKey("entries")))||[];
-
 production=JSON.parse(localStorage.getItem(getKey("production")))||[];
-
 cows=JSON.parse(localStorage.getItem(getKey("cows")))||[];
-
+expenses=JSON.parse(localStorage.getItem(getKey("expenses")))||[];
 feed=parseFloat(localStorage.getItem(getKey("feed")))||0;
 
 renderCustomers();
-
 renderEntries();
-
 renderProduction();
-
 renderCows();
+renderExpenses();
 
 refreshSelect();
-
 refreshReportCustomer();
 
 loadSummary();
-
 drawChart();
 
 }
@@ -348,13 +334,10 @@ drawChart();
 function saveAll(){
 
 localStorage.setItem(getKey("customers"),JSON.stringify(customers));
-
 localStorage.setItem(getKey("entries"),JSON.stringify(entries));
-
 localStorage.setItem(getKey("production"),JSON.stringify(production));
-
 localStorage.setItem(getKey("cows"),JSON.stringify(cows));
-
+localStorage.setItem(getKey("expenses"),JSON.stringify(expenses));
 localStorage.setItem(getKey("feed"),feed);
 
 }
@@ -362,19 +345,13 @@ localStorage.setItem(getKey("feed"),feed);
 function addCustomer(){
 
 customers.push({
-
 name:custName.value,
-
 price:parseFloat(milkPrice.value)
-
 });
 
 saveAll();
-
 renderCustomers();
-
 refreshSelect();
-
 refreshReportCustomer();
 
 }
@@ -386,21 +363,11 @@ let html="<table><tr><th>Name</th><th>Price</th><th>Action</th></tr>";
 customers.forEach((c,i)=>{
 
 html+=`<tr>
-
 <td>${c.name}</td>
-
 <td>${c.price}</td>
-
 <td>
-
-<button class="actionBtn" onclick="editCustomer(${i})">Edit</button>
-
 <button class="actionBtn" onclick="deleteCustomer(${i})">Delete</button>
-
-<button class="actionBtn" onclick="generateBill('${c.name}')">Bill</button>
-
 </td>
-
 </tr>`;
 
 });
@@ -411,48 +378,10 @@ customerList.innerHTML=html;
 
 }
 
-function searchCustomer(){
-
-let keyword=searchCustomer.value.toLowerCase();
-
-let filtered=customers.filter(c=>c.name.toLowerCase().includes(keyword));
-
-let html="<table><tr><th>Name</th><th>Price</th></tr>";
-
-filtered.forEach(c=>{
-
-html+=`<tr><td>${c.name}</td><td>${c.price}</td></tr>`;
-
-});
-
-html+="</table>";
-
-customerList.innerHTML=html;
-
-}
-
-function editCustomer(i){
-
-let name=prompt("Name",customers[i].name);
-
-let price=prompt("Price",customers[i].price);
-
-customers[i]={name,price};
-
-saveAll();
-
-renderCustomers();
-
-}
-
 function deleteCustomer(i){
-
 customers.splice(i,1);
-
 saveAll();
-
 renderCustomers();
-
 }
 
 function refreshSelect(){
@@ -460,9 +389,7 @@ function refreshSelect(){
 custSelect.innerHTML="";
 
 customers.forEach((c,i)=>{
-
 custSelect.innerHTML+=`<option value="${i}">${c.name}</option>`;
-
 });
 
 }
@@ -472,9 +399,7 @@ function refreshReportCustomer(){
 reportCustomer.innerHTML="";
 
 customers.forEach(c=>{
-
-reportCustomer.innerHTML+=`<option value="${c.name}">${c.name}</option>`;
-
+reportCustomer.innerHTML+=`<option>${c.name}</option>`;
 });
 
 }
@@ -482,20 +407,48 @@ reportCustomer.innerHTML+=`<option value="${c.name}">${c.name}</option>`;
 function addEntry(){
 
 let c=customers[custSelect.value];
-
 let total=entryMilk.value*c.price;
 
 entries.push({
-
 date:entryDate.value,
-
 name:c.name,
-
 litre:entryMilk.value,
-
 total
+});
+
+saveAll();
+renderEntries();
+loadSummary();
+
+}
+
+function renderEntries(){
+
+let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th><th>Action</th></tr>";
+
+entries.forEach((e,i)=>{
+
+html+=`<tr>
+<td>${e.date}</td>
+<td>${e.name}</td>
+<td>${e.litre}</td>
+<td>${e.total}</td>
+<td>
+<button onclick="deleteEntry(${i})">Delete</button>
+</td>
+</tr>`;
 
 });
+
+html+="</table>";
+
+entryList.innerHTML=html;
+
+}
+
+function deleteEntry(i){
+
+entries.splice(i,1);
 
 saveAll();
 
@@ -505,187 +458,17 @@ loadSummary();
 
 }
 
-function renderEntries(){
-
-let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th></tr>";
-
-entries.forEach(e=>{
-
-html+=`<tr>
-
-<td>${e.date}</td>
-
-<td>${e.name}</td>
-
-<td>${e.litre}</td>
-
-<td>${e.total}</td>
-
-</tr>`;
-
-});
-
-html+="</table>";
-
-entryList.innerHTML=html;
-
-}
-
-function filterEntries(){
-
-let from=fromDate.value;
-
-let to=toDate.value;
-
-let filtered=entries.filter(e=>e.date>=from && e.date<=to);
-
-let html="<table><tr><th>Date</th><th>Name</th><th>Litre</th><th>Total</th></tr>";
-
-filtered.forEach(e=>{
-
-html+=`<tr>
-
-<td>${e.date}</td>
-
-<td>${e.name}</td>
-
-<td>${e.litre}</td>
-
-<td>${e.total}</td>
-
-</tr>`;
-
-});
-
-html+="</table>";
-
-entryList.innerHTML=html;
-
-}
-
-function generateBill(name){
-
-let custEntries=entries.filter(e=>e.name===name);
-
-let milk=custEntries.reduce((s,e)=>s+parseFloat(e.litre),0);
-
-let money=custEntries.reduce((s,e)=>s+parseFloat(e.total),0);
-
-alert("Customer: "+name+"\nMilk: "+milk+"L\nBill: ₹"+money);
-
-}
-
-function showCustomerReport(){
-
-let report={};
-
-entries.forEach(e=>{
-
-if(!report[e.name]) report[e.name]={milk:0,money:0};
-
-report[e.name].milk+=parseFloat(e.litre);
-
-report[e.name].money+=parseFloat(e.total);
-
-});
-
-let html="<table><tr><th>Name</th><th>Total Milk</th><th>Total Money</th></tr>";
-
-for(let n in report){
-
-html+=`<tr>
-
-<td>${n}</td>
-
-<td>${report[n].milk}</td>
-
-<td>${report[n].money}</td>
-
-</tr>`;
-
-}
-
-html+="</table>";
-
-customerReport.innerHTML=html;
-
-}
-
 function generateMonthlyReport(){
 
 let customer=reportCustomer.value;
-
 let month=reportMonth.value;
 
 let filtered=entries.filter(e=>e.name===customer && e.date.startsWith(month));
 
-if(filtered.length===0){
+let milk=filtered.reduce((s,e)=>s+parseFloat(e.litre),0);
+let money=filtered.reduce((s,e)=>s+parseFloat(e.total),0);
 
-monthlyReport.innerHTML="No Data";
-
-return;
-
-}
-
-let fromDate=filtered[0].date;
-
-let toDate=filtered[filtered.length-1].date;
-
-let totalMilk=filtered.reduce((s,e)=>s+parseFloat(e.litre),0);
-
-let totalMoney=filtered.reduce((s,e)=>s+parseFloat(e.total),0);
-
-let html=`
-
-<h3>${customer} Monthly Report</h3>
-
-<p>
-
-From: ${fromDate}<br>
-
-To: ${toDate}<br>
-
-Total Milk: ${totalMilk}L<br>
-
-Total Bill: ₹${totalMoney}
-
-</p>
-
-<table>
-
-<tr>
-
-<th>Date</th>
-
-<th>Milk</th>
-
-<th>Amount</th>
-
-</tr>
-
-`;
-
-filtered.forEach(e=>{
-
-html+=`
-
-<tr>
-
-<td>${e.date}</td>
-
-<td>${e.litre}</td>
-
-<td>${e.total}</td>
-
-</tr>
-
-`;
-
-});
-
-html+="</table>";
-
-monthlyReport.innerHTML=html;
+monthlyReport.innerHTML="Milk: "+milk+"L<br>Bill: ₹"+money;
 
 }
 
@@ -696,25 +479,23 @@ let total=parseFloat(morningMilk.value||0)+parseFloat(eveningMilk.value||0);
 production.push({date:prodDate.value,total});
 
 saveAll();
-
 renderProduction();
-
 drawChart();
 
 }
 
 function renderProduction(){
 
-let html="<table><tr><th>Date</th><th>Total</th></tr>";
+let html="<table><tr><th>Date</th><th>Total</th><th>Action</th></tr>";
 
-production.forEach(p=>{
+production.forEach((p,i)=>{
 
 html+=`<tr>
-
 <td>${p.date}</td>
-
 <td>${p.total}</td>
-
+<td>
+<button onclick="deleteProduction(${i})">Delete</button>
+</td>
 </tr>`;
 
 });
@@ -722,6 +503,18 @@ html+=`<tr>
 html+="</table>";
 
 productionList.innerHTML=html;
+
+}
+
+function deleteProduction(i){
+
+production.splice(i,1);
+
+saveAll();
+
+renderProduction();
+
+drawChart();
 
 }
 
@@ -740,9 +533,7 @@ function renderCows(){
 let html="<table>";
 
 cows.forEach(c=>{
-
 html+=`<tr><td>${c}</td></tr>`;
-
 });
 
 html+="</table>";
@@ -761,24 +552,82 @@ loadSummary();
 
 }
 
+function addExpense(){
+
+expenses.push({
+date:expDate.value,
+note:expNote.value,
+amount:parseFloat(expAmount.value)
+});
+
+saveAll();
+
+renderExpenses();
+
+}
+
+function renderExpenses(){
+
+let html="<table><tr><th>Date</th><th>Note</th><th>Amount</th><th>Action</th></tr>";
+
+expenses.forEach((e,i)=>{
+
+html+=`<tr>
+<td>${e.date}</td>
+<td>${e.note}</td>
+<td>${e.amount}</td>
+<td>
+<button onclick="deleteExpense(${i})">Delete</button>
+</td>
+</tr>`;
+
+});
+
+html+="</table>";
+
+expenseList.innerHTML=html;
+
+}
+
+function deleteExpense(i){
+
+expenses.splice(i,1);
+
+saveAll();
+
+renderExpenses();
+
+loadSummary();
+
+}
+
+function generateExpenseReport(){
+
+let month=expMonth.value;
+
+let filtered=expenses.filter(e=>e.date.startsWith(month));
+
+let total=filtered.reduce((s,e)=>s+e.amount,0);
+
+expenseReport.innerHTML="Total Expense ₹"+total;
+
+}
+
 function loadSummary(){
 
-let totalMilk=entries.reduce((s,e)=>s+parseFloat(e.litre),0);
+let milk=entries.reduce((s,e)=>s+parseFloat(e.litre),0);
+let income=entries.reduce((s,e)=>s+parseFloat(e.total),0);
+let prod=production.reduce((s,p)=>s+p.total,0);
+let expense=expenses.reduce((s,e)=>s+e.amount,0);
 
-let totalMoney=entries.reduce((s,e)=>s+parseFloat(e.total),0);
-
-let totalProd=production.reduce((s,p)=>s+p.total,0);
-
-let profit=totalMoney-feed;
+let profit=income-feed-expense;
 
 summary.innerHTML=
 
-"Milk Sold: "+totalMilk+"L<br>"+
-
-"Income: ₹"+totalMoney+"<br>"+
-
-"Production: "+totalProd+"L<br>"+
-
+"Milk Sold: "+milk+"L<br>"+
+"Income: ₹"+income+"<br>"+
+"Production: "+prod+"L<br>"+
+"Expense: ₹"+expense+"<br>"+
 "Profit: ₹"+profit;
 
 }
@@ -792,19 +641,12 @@ chartInstance=new Chart(chart,{
 type:"line",
 
 data:{
-
 labels:production.map(p=>p.date),
-
 datasets:[{
-
 label:"Production",
-
 data:production.map(p=>p.total),
-
 borderColor:"lime"
-
 }]
-
 }
 
 });
@@ -813,7 +655,7 @@ borderColor:"lime"
 
 function backup(){
 
-let data={customers,entries,production,cows,feed};
+let data={customers,entries,production,cows,expenses,feed};
 
 let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
 
@@ -838,20 +680,16 @@ reader.onload=function(){
 let data=JSON.parse(reader.result);
 
 customers=data.customers;
-
 entries=data.entries;
-
 production=data.production;
-
 cows=data.cows;
-
+expenses=data.expenses;
 feed=data.feed;
 
 saveAll();
-
 loadAll();
 
-alert("Restored");
+alert("Restore complete");
 
 };
 
